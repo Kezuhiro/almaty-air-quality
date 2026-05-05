@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="history-page py-5">
+    <div class="container">
+        {% if error %}
+            <div class="card border-0 shadow-sm text-center p-4 p-lg-5 history-error-card">
+                <div class="error-icon mb-3"><i class="bi bi-hourglass-split"></i></div>
+                <h3 class="fw-bold mb-2" data-lang="history_error_title">История пока недоступна</h3>
+                <p class="text-muted mb-4">{{ error }}</p>
+                <div>
+                    <a href="/forecast" class="btn btn-primary rounded-pill px-4" data-lang="history_error_btn">Перейти к прогнозу</a>
+                </div>
+            </div>
+        {% else %}
+            <div class="history-hero rounded-4 p-4 p-lg-5 mb-4 shadow-sm">
+                <div class="row g-3 align-items-center">
+                    <div class="col-lg-8">
+                        <span class="hero-kicker" data-lang="history_badge">Исторический мониторинг</span>
+                        <h1 class="mt-2 mb-2" data-lang="history_title">Динамика загрязнения воздуха</h1>
+                        <p class="text-muted mb-0" data-lang="history_subtitle">Сравнивайте показатели PM2.5 по дням, оценивайте тренд и находите периоды риска.</p>
+                    </div>
+                    <div class="col-lg-4 text-lg-end">
+                        <a href="/forecast" class="btn btn-outline-primary rounded-pill px-4" data-lang="history_cta">Открыть прогноз</a>
+                    </div>
+                </div>
+            </div>
+
+            <ul class="nav nav-pills mb-4 gap-2" id="history-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active rounded-pill px-4" id="daily-tab" data-bs-toggle="pill" data-bs-target="#daily" type="button" role="tab" aria-controls="daily" aria-selected="true" data-lang="history_tab_daily">По дням</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link rounded-pill px-4" id="hourly-tab" data-bs-toggle="pill" data-bs-target="#hourly" type="button" role="tab" aria-controls="hourly" aria-selected="false" data-lang="history_tab_hourly">По часам</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link rounded-pill px-4" id="stations-tab" data-bs-toggle="pill" data-bs-target="#stations" type="button" role="tab" aria-controls="stations" aria-selected="false" data-lang="history_tab_stations">По станциям</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="history-tabs-content">
+                <!-- Daily Tab -->
+                <div class="tab-pane fade show active app-fade-in" id="daily" role="tabpanel" aria-labelledby="daily-tab">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4 col-xl-3">
+                            <article class="stat-card h-100 shadow-sm">
+                                <div class="stat-label" data-lang="history_stat_days">Всего дней</div>
+                                <div class="stat-value">{{ stats.days }}</div>
+                            </article>
+                        </div>
+                        <div class="col-md-4 col-xl-3">
+                            <article class="stat-card h-100 shadow-sm">
+                                <div class="stat-label" data-lang="history_stat_avg">Средний PM2.5</div>
+                                <div class="stat-value">{{ stats.avg }}</div>
+                            </article>
+                        </div>
+                        <div class="col-md-4 col-xl-3">
+                            <article class="stat-card h-100 shadow-sm">
+                                <div class="stat-label" data-lang="history_stat_max">Максимум PM2.5</div>
+                                <div class="stat-value">{{ stats.max }}</div>
+                            </article>
+                        </div>
+                        <div class="col-xl-3">
+                            <article class="stat-card h-100 trend-card shadow-sm">
+                                <div class="stat-label" data-lang="history_stat_trend">Тренд периода</div>
+                                <div class="d-flex align-items-end justify-content-between">
+                                    <div class="stat-value" id="trendValue">-</div>
+                                    <span class="trend-hint" id="trendHint" data-lang="history_stat_trend_hint">Ожидание данных</span>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                        <div class="card-body p-4">
+                            <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-3">
+                                <div>
+                                    <h5 class="fw-bold mb-1" data-lang="history_chart_title">График PM2.5</h5>
+                                    <p class="text-muted mb-0 small" data-lang="history_chart_desc">Переключайте диапазон для быстрого анализа последних периодов.</p>
+                                </div>
+                                <div class="btn-group range-group" role="group" aria-label="chart range">
+                                    <button type="button" class="btn btn-outline-secondary active" data-range="7" data-lang="history_range_7">7 дней</button>
+                                    <button type="button" class="btn btn-outline-secondary" data-range="14" data-lang="history_range_14">14 дней</button>
+                                    <button type="button" class="btn btn-outline-secondary" data-range="30" data-lang="history_range_30">30 дней</button>
+                                    <button type="button" class="btn btn-outline-secondary" data-range="all" data-lang="history_range_all">Все</button>
+                                </div>
+                            </div>
+                            <div class="chart-wrap">
+                                <canvas id="historyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                        <div class="card-body p-4">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+                                <h5 class="fw-bold mb-0" data-lang="history_table_title">Детальная таблица</h5>
+                                <div class="search-wrap">
+                                    <i class="bi bi-search"></i>
+                                    <input type="search" id="historySearch" class="form-control" data-lang-placeholder="history_search_placeholder" placeholder="Поиск по дате или значению">
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0" id="historyTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th data-lang="history_th_date">Дата</th>
+                                            <th data-lang="history_th_pm25">PM2.5</th>
+                                            <th data-lang="history_th_pm10">PM10</th>
+                                            <th data-lang="history_th_status">Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in history %}
+                                        {% set pm = row.pm25|float %}
+                                        <tr class="history-row" data-search="{{ row.date }} {{ row.pm25 }} {{ row.pm10 }}" data-pm="{{ row.pm25 }}">
+                                            <td>{{ row.date }}</td>
+                                            <td class="fw-bold">{{ row.pm25 }}</td>
+                                            <td>{{ row.pm10 }}</td>
+                                            <td>
+                                                {% if pm <= 35 %}
+                                                    <span class="badge bg-success" data-lang="st_1">Отлично</span>
+                                                {% elif pm <= 75 %}
+                                                    <span class="badge bg-success bg-opacity-75" data-lang="st_2">Нормально</span>
+                                                {% elif pm <= 115 %}
+                                                    <span class="badge bg-warning text-dark" data-lang="st_3">Среднее</span>
+                                                {% elif pm <= 150 %}
+                                                    <span class="badge bg-orange" data-lang="st_4">Вредно</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger" data-lang="st_5">ОПАСНО</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="text-center text-muted mt-3 mb-0 d-none" id="noResults" data-lang="history_no_results">Ничего не найдено по вашему запросу.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hourly Tab -->
+                <div class="tab-pane fade app-fade-in" id="hourly" role="tabpanel" aria-labelledby="hourly-tab">
+                    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                        <div class="card-body p-4">
+                            <h5 class="fw-bold mb-3" data-lang="history_hourly_chart_title">График PM2.5 по часам (последние 7 дней)</h5>
+                            <div class="chart-wrap" style="height: 400px;">
+                                <canvas id="hourlyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stations Tab -->
+                <div class="tab-pane fade app-fade-in" id="stations" role="tabpanel" aria-labelledby="stations-tab">
+                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                        <div class="card-body p-4">
+                            <h5 class="fw-bold mb-3" data-lang="history_stations_title">Средние показатели PM2.5 по станциям (исключены невалидные)</h5>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th data-lang="history_th_station">Станция (ID)</th>
+                                            <th data-lang="history_th_avg_pm25">Средний PM2.5</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for st in stations %}
+                                        <tr>
+                                            <td class="fw-bold"><i class="bi bi-geo-alt-fill text-primary me-2"></i>{{ st.id }}</td>
+                                            <td>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="{% if st.avg_pm25 > 35 %}text-danger{% else %}text-success{% endif %} fw-bold" style="min-width: 45px;">
+                                                        {{ st.avg_pm25 }}
+                                                    </span>
+                                                    <div class="progress flex-grow-1" style="height: 6px;">
+                                                        <div class="progress-bar {% if st.avg_pm25 > 35 %}bg-danger{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ (st.avg_pm25 / 150 * 100) if (st.avg_pm25 / 150 * 100) < 100 else 100 }}%"></div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</section>
+
+{% if not error %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    (() => {
+        const labels = {{ chart_dates | tojson }};
+        const values = {{ chart_values | tojson }};
+
+        const hourlyLabels = {{ hourly_dates | default([]) | tojson }};
+        const hourlyValues = {{ hourly_values | default([]) | tojson }};
+
+        const getLang = () => localStorage.getItem('lang') || 'ru';
+        const t = (key, fallback = '') => {
+            if (typeof translations !== 'undefined' && translations[getLang()] && translations[getLang()][key]) {
+                return translations[getLang()][key];
+            }
+            return fallback;
+        };
+
+        const trendValue = document.getElementById('trendValue');
+        const trendHint = document.getElementById('trendHint');
+        if (values.length > 1) {
+            const diff = Number(values[values.length - 1]) - Number(values[0]);
+            const diffAbs = Math.abs(diff).toFixed(1);
+            trendValue.textContent = `${diff > 0 ? '+' : diff < 0 ? '-' : ''}${diffAbs}`;
+            if (diff > 0) {
+                trendHint.textContent = t('history_trend_up', 'Рост загрязнения');
+                trendHint.classList.add('text-danger');
+            } else if (diff < 0) {
+                trendHint.textContent = t('history_trend_down', 'Снижение загрязнения');
+                trendHint.classList.add('text-success');
+            } else {
+                trendHint.textContent = t('history_trend_flat', 'Без изменений');
+                trendHint.classList.add('text-secondary');
+            }
+        }
+
+        const ctx = document.getElementById('historyChart').getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+        gradient.addColorStop(0, 'rgba(13, 110, 253, 0.28)');
+        gradient.addColorStop(1, 'rgba(13, 110, 253, 0.02)');
+
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: t('history_chart_label', 'PM2.5 (мкг/м³)') + ' (День)',
+                    data: values,
+                    borderColor: '#0d6efd',
+                    backgroundColor: gradient,
+                    borderWidth: 2.5,
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 2,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: { display: true },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `${context.dataset.label}: ${context.parsed.y}`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(128,128,128,0.14)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        const rangeButtons = document.querySelectorAll('[data-range]');
+        const applyRange = (rangeValue) => {
+            let start = 0;
+            if (rangeValue !== 'all') {
+                const days = Number(rangeValue);
+                start = Math.max(0, labels.length - days);
+            }
+            chart.data.labels = labels.slice(start);
+            chart.data.datasets[0].data = values.slice(start);
+            chart.update();
+
+            rangeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.range === rangeValue));
+        };
+
+        rangeButtons.forEach(btn => {
+            btn.addEventListener('click', () => applyRange(btn.dataset.range));
+        });
+        applyRange('7');
+
+        const searchInput = document.getElementById('historySearch');
+        const rows = Array.from(document.querySelectorAll('.history-row'));
+        const noResults = document.getElementById('noResults');
+
+        const filterRows = () => {
+            const query = searchInput.value.trim().toLowerCase();
+            let visible = 0;
+
+            rows.forEach(row => {
+                const text = (row.dataset.search || '').toLowerCase();
+                const match = text.includes(query);
+                row.classList.toggle('d-none', !match);
+                if (match) visible += 1;
+            });
+
+            noResults.classList.toggle('d-none', visible !== 0);
+        };
+
+        if(searchInput) {
+            searchInput.addEventListener('input', filterRows);
+        }
+
+        // Hourly Chart
+        if (hourlyValues.length > 0) {
+            const ctxHourly = document.getElementById('hourlyChart').getContext('2d');
+            const gradHourly = ctxHourly.createLinearGradient(0, 0, 0, 400);
+            gradHourly.addColorStop(0, 'rgba(20, 184, 166, 0.3)');
+            gradHourly.addColorStop(1, 'rgba(20, 184, 166, 0.01)');
+
+            new Chart(ctxHourly, {
+                type: 'line',
+                data: {
+                    labels: hourlyLabels,
+                    datasets: [{
+                        label: t('history_chart_label', 'PM2.5 (мкг/м³)') + ' (Час)',
+                        data: hourlyValues,
+                        borderColor: '#14b8a6',
+                        backgroundColor: gradHourly,
+                        borderWidth: 2,
+                        tension: 0.2,
+                        fill: true,
+                        pointRadius: 0,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: { legend: { display: true } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(128,128,128,0.14)' } },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { maxTicksLimit: 14 }
+                        }
+                    }
+                }
+            });
+        }
+
+        document.addEventListener('langChanged', () => {
+            chart.data.datasets[0].label = t('history_chart_label', 'PM2.5 (мкг/м³)') + ' (День)';
+            chart.update();
+
+            if (values.length > 1) {
+                const diff = Number(values[values.length - 1]) - Number(values[0]);
+                if (diff > 0) trendHint.textContent = t('history_trend_up', 'Рост загрязнения');
+                if (diff < 0) trendHint.textContent = t('history_trend_down', 'Снижение загрязнения');
+                if (diff === 0) trendHint.textContent = t('history_trend_flat', 'Без изменений');
+            }
+        });
+    })();
+</script>
+{% endif %}
+
+<style>
+    .history-hero {
+        border: 1px solid rgba(13, 110, 253, 0.14);
+        background:
+            radial-gradient(circle at 90% 10%, rgba(13, 110, 253, 0.14), transparent 45%),
+            var(--bs-body-bg);
+    }
+
+    .hero-kicker {
+        display: inline-block;
+        font-size: 0.78rem;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+        color: var(--bs-primary);
+        text-transform: uppercase;
+    }
+
+    .history-hero h1 {
+        font-size: clamp(1.8rem, 4vw, 2.8rem);
+        line-height: 1.12;
+    }
+
+    .stat-card {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.9rem;
+        padding: 1rem;
+        background: var(--bs-body-bg);
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: var(--bs-secondary-color);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+
+    .stat-value {
+        font-size: clamp(1.4rem, 2.8vw, 2rem);
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .trend-card {
+        background: linear-gradient(140deg, rgba(13, 110, 253, 0.1), rgba(255, 255, 255, 0));
+    }
+
+    [data-bs-theme="dark"] .trend-card {
+        background: linear-gradient(140deg, rgba(13, 110, 253, 0.2), rgba(33, 37, 41, 0));
+    }
+
+    .trend-hint {
+        font-size: 0.84rem;
+        font-weight: 600;
+    }
+
+    .range-group .btn.active {
+        background: var(--bs-primary);
+        border-color: var(--bs-primary);
+        color: #fff;
+    }
+
+    .chart-wrap {
+        height: 330px;
+    }
+
+    .search-wrap {
+        position: relative;
+        width: min(100%, 300px);
+    }
+
+    .search-wrap i {
+        position: absolute;
+        left: 0.8rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--bs-secondary-color);
+        pointer-events: none;
+    }
+
+    .search-wrap input {
+        padding-left: 2.25rem;
+        border-radius: 999px;
+    }
+
+    .history-error-card {
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .error-icon {
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        color: #0d6efd;
+        background: rgba(13, 110, 253, 0.12);
+    }
+
+    /* Tabs styling */
+    .nav-pills .nav-link {
+        font-weight: 600;
+        color: var(--bs-body-color);
+        background-color: var(--bs-secondary-bg);
+    }
+    .nav-pills .nav-link.active {
+        background: linear-gradient(135deg, #2563eb, #14b8a6);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,595 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="about-page py-5">
+    <div class="container">
+        <div class="about-hero p-4 p-lg-5 mb-5 app-fade-in">
+            <div class="row g-4 align-items-center">
+                <div class="col-lg-7">
+                    <span class="about-kicker">Methodology / Air platform</span>
+                    <h1 class="display-4 fw-bold mb-3">Прототип городской системы прогноза воздуха</h1>
+                    <p class="lead text-muted mb-0">Проект объединяет live-датчики, метеоданные и ML-модели, чтобы объяснять загрязнение PM2.5 в Алматы и помогать принимать решения заранее.</p>
+                </div>
+                <div class="col-lg-5">
+                    <div class="hero-visual">
+                        <div class="visual-node node-main"><i class="bi bi-cpu"></i><span>Core</span></div>
+                        <div class="visual-node node-a">OpenAQ</div>
+                        <div class="visual-node node-b">CatBoost</div>
+                        <div class="visual-node node-c">STGCN</div>
+                        <div class="visual-node node-d">Open-Meteo</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-5 align-items-stretch">
+            <div class="col-lg-7">
+                <div class="mission-card h-100 p-4 p-lg-5">
+                    <span class="about-kicker">Миссия</span>
+                    <h3 class="fw-bold mb-3">Сделать качество воздуха понятным до того, как смог станет очевидным</h3>
+                    <p class="text-muted mb-0">Система превращает сложный набор временных рядов, погодных факторов и пространственных связей в простой интерфейс: текущее состояние, прогноз, карта и рекомендации.</p>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="stats-card h-100 p-4">
+                    <div class="about-stat">
+                        <div class="value">24</div>
+                        <div class="label">якорные станции графа STGCN</div>
+                    </div>
+                    <div class="about-stat">
+                        <div class="value">18</div>
+                        <div class="label">признаков CatBoost для суточного прогноза</div>
+                    </div>
+                    <div class="about-stat">
+                        <div class="value">3</div>
+                        <div class="label">модели в аналитическом центре</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-head text-center mb-4">
+            <span class="about-kicker">Pipeline</span>
+            <h2 class="fw-bold mb-2">Как это работает</h2>
+            <p class="text-muted mb-0">Данные проходят путь от источников до понятного прогноза в FastAPI + Jinja2 интерфейсе.</p>
+        </div>
+
+        <div class="pipeline-grid mb-5">
+            <article class="pipeline-card">
+                <div class="pipeline-icon bg-primary-subtle text-primary"><i class="bi bi-broadcast-pin"></i></div>
+                <h5>OpenAQ</h5>
+                <p>Живые датчики AirKaz и 24 станции, выбранные как устойчивые узлы графа.</p>
+            </article>
+            <article class="pipeline-card">
+                <div class="pipeline-icon bg-info-subtle text-info"><i class="bi bi-cloud-sun"></i></div>
+                <h5>Open-Meteo</h5>
+                <p>Температура, ветер, давление, осадки и городская история PM2.5.</p>
+            </article>
+            <article class="pipeline-card">
+                <div class="pipeline-icon bg-success-subtle text-success"><i class="bi bi-tree"></i></div>
+                <h5>CatBoost</h5>
+                <p>Суточный прогноз PM2.5 с учетом лагов, сезонности и физико-географических факторов.</p>
+            </article>
+            <article class="pipeline-card">
+                <div class="pipeline-icon bg-warning-subtle text-warning"><i class="bi bi-diagram-3"></i></div>
+                <h5>STGCN</h5>
+                <p>Графовая нейросеть показывает пространственное распределение загрязнения по станциям.</p>
+            </article>
+        </div>
+
+        <div class="section-head text-center mb-4">
+            <span class="about-kicker">Models</span>
+            <h2 class="fw-bold mb-2">Модели платформы</h2>
+        </div>
+
+        <div class="model-grid mb-5">
+            <article class="model-card active-model">
+                <div class="model-top">
+                    <i class="bi bi-calendar2-check"></i>
+                    <span>Production</span>
+                </div>
+                <h4>CatBoost</h4>
+                <p>Прогноз среднего PM2.5 на завтра и генерация рекомендаций для жителей.</p>
+            </article>
+            <article class="model-card active-model">
+                <div class="model-top">
+                    <i class="bi bi-map"></i>
+                    <span>Spatial</span>
+                </div>
+                <h4>STGCN</h4>
+                <p>Карта загрязнения по 24 станциям с учетом графовых связей между районами.</p>
+            </article>
+            <article class="model-card soon-model">
+                <div class="model-top">
+                    <i class="bi bi-hourglass-split"></i>
+                    <span>Coming soon</span>
+                </div>
+                <h4>Baseline</h4>
+                <p>Почасовой прогноз на 24 часа. Сейчас показан как заглушка в разделе прогноза.</p>
+            </article>
+        </div>
+
+        <div class="section-head text-center mb-4">
+            <span class="about-kicker">Almaty physics</span>
+            <h2 class="fw-bold mb-2">Почему это сложно</h2>
+            <p class="text-muted mb-0">Алматы нельзя описать одним средним числом: география усиливает загрязнение.</p>
+        </div>
+
+        <div class="challenge-grid mb-5">
+            <article class="challenge-card">
+                <i class="bi bi-triangle"></i>
+                <h5>Горы</h5>
+                <p>Котловина ограничивает естественную вентиляцию города и удерживает загрязнение внизу.</p>
+            </article>
+            <article class="challenge-card">
+                <i class="bi bi-layers"></i>
+                <h5>Инверсия</h5>
+                <p>Теплый слой воздуха сверху может запереть холодный загрязненный воздух у поверхности.</p>
+            </article>
+            <article class="challenge-card">
+                <i class="bi bi-wind"></i>
+                <h5>Ветер</h5>
+                <p>Слабый ветер и отсутствие осадков создают стагнацию, где PM2.5 быстро накапливается.</p>
+            </article>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <div>
+                <span class="about-kicker">Team</span>
+                <h3 class="fw-bold mb-0">Команда проекта</h3>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-lg-4 col-md-6">
+                <article class="member-card h-100 text-center p-4">
+                    <div class="avatar-wrap mx-auto mb-3">
+                        <img src="{{ url_for('static', path='img/bex.jpg') }}" class="avatar" alt="Project Manager">
+                    </div>
+                    <h4 class="fw-bold mb-1">Канат Бексултан</h4>
+                    <span class="member-role role-primary">Project Manager</span>
+                    <p class="text-muted small mt-3 mb-0">Координация задач, архитектура проекта и контроль качества итогового решения.</p>
+                </article>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <article class="member-card h-100 text-center p-4">
+                    <div class="avatar-wrap mx-auto mb-3">
+                        <img src="{{ url_for('static', path='img/nurs.jpg') }}" class="avatar" alt="ML Engineer">
+                    </div>
+                    <h4 class="fw-bold mb-1">Нуртай Нурсултан</h4>
+                    <span class="member-role role-success">ML Engineer</span>
+                    <p class="text-muted small mt-3 mb-0">Подготовка датасета, обучение CatBoost, работа с признаками и качеством прогноза.</p>
+                </article>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <article class="member-card h-100 text-center p-4">
+                    <div class="avatar-wrap mx-auto mb-3">
+                        <img src="{{ url_for('static', path='img/sanzh.jpg') }}" class="avatar" alt="Full-Stack Developer">
+                    </div>
+                    <h4 class="fw-bold mb-1">Марат Санжар</h4>
+                    <span class="member-role role-info">Full-Stack Developer</span>
+                    <p class="text-muted small mt-3 mb-0">FastAPI, Jinja2, интерфейс, интеграция моделей и пользовательский опыт.</p>
+                </article>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-lg-5">
+                <div class="values-card h-100 p-4">
+                    <span class="about-kicker">Principles</span>
+                    <h3 class="fw-bold mb-3">Принципы работы</h3>
+                    <div class="value-item">
+                        <h6>Точность</h6>
+                        <p>Модель проверяется на исторических данных, а признаки учитывают физику города.</p>
+                    </div>
+                    <div class="value-item">
+                        <h6>Прозрачность</h6>
+                        <p>Интерфейс показывает не только число, но и факторы прогноза.</p>
+                    </div>
+                    <div class="value-item mb-0">
+                        <h6>Практическая польза</h6>
+                        <p class="mb-0">Результат переводится в конкретные рекомендации: окна, спорт, маска, дети.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="roadmap-card h-100 p-4">
+                    <span class="about-kicker">Roadmap</span>
+                    <h3 class="fw-bold mb-4">План развития</h3>
+                    <div class="roadmap-line">
+                        <div class="roadmap-item done">
+                            <div class="dot"></div>
+                            <div>
+                                <div class="d-flex justify-content-between gap-2 flex-wrap">
+                                    <h6 class="mb-1">MVP платформы</h6>
+                                    <small class="text-muted">Jan2025</small>
+                                </div>
+                                <p class="text-muted small mb-0">FastAPI web-интерфейс, CatBoost, STGCN карта и базовая визуализация.</p>
+                            </div>
+                        </div>
+                        <div class="roadmap-item active">
+                            <div class="dot"></div>
+                            <div>
+                                <div class="d-flex justify-content-between gap-2 flex-wrap">
+                                    <h6 class="mb-1">Real-time надежность</h6>
+                                    <small class="text-muted">Feb 2026</small>
+                                </div>
+                                <p class="text-muted small mb-0">Кэширование, контроль источников и улучшение Spatial Imputer.</p>
+                            </div>
+                        </div>
+                        <div class="roadmap-item">
+                            <div class="dot"></div>
+                            <div>
+                                <div class="d-flex justify-content-between gap-2 flex-wrap">
+                                    <h6 class="mb-1">Baseline 24ч и mobile</h6>
+                                    <small class="text-muted">May 2026</small>
+                                </div>
+                                <p class="text-muted small mb-0">Почасовая модель, уведомления о рисках и персональные сценарии активности.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tech-card text-center p-4 mb-5">
+            <h4 class="fw-bold mb-3">Технологический стек</h4>
+            <div class="d-flex justify-content-center flex-wrap gap-2">
+                <span class="badge tech-chip"><i class="bi bi-filetype-py me-1 text-primary"></i>Python</span>
+                <span class="badge tech-chip">FastAPI</span>
+                <span class="badge tech-chip">Jinja2</span>
+                <span class="badge tech-chip">Pandas</span>
+                <span class="badge tech-chip">CatBoost</span>
+                <span class="badge tech-chip">PyTorch</span>
+                <span class="badge tech-chip">Chart.js</span>
+                <span class="badge tech-chip">Leaflet</span>
+            </div>
+        </div>
+
+        <div class="about-cta p-4 p-lg-5 text-center">
+            <h3 class="fw-bold mb-2">Посмотрите систему на реальном сценарии</h3>
+            <p class="text-muted mb-4">Откройте прогноз, чтобы увидеть CatBoost, Baseline-заглушку и STGCN карту в одном интерфейсе.</p>
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+                <a href="/forecast" class="btn btn-primary rounded-pill px-4">Прогноз</a>
+                <a href="/history" class="btn btn-outline-primary rounded-pill px-4">История</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+    .about-page { overflow: hidden; }
+
+    .about-hero {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        background:
+            radial-gradient(circle at 8% 12%, rgba(37, 99, 235, 0.2), transparent 32%),
+            radial-gradient(circle at 95% 0%, rgba(20, 184, 166, 0.16), transparent 34%),
+            var(--bs-body-bg);
+        box-shadow: var(--app-shadow);
+    }
+
+    .about-kicker {
+        display: inline-block;
+        margin-bottom: 0.45rem;
+        color: var(--bs-primary);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .hero-visual {
+        position: relative;
+        min-height: 320px;
+        border-radius: 8px;
+        background:
+            linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(20, 184, 166, 0.06)),
+            var(--bs-tertiary-bg);
+        border: 1px solid var(--bs-border-color);
+        overflow: hidden;
+    }
+
+    .hero-visual::before,
+    .hero-visual::after {
+        content: "";
+        position: absolute;
+        inset: 20%;
+        border: 1px dashed rgba(37, 99, 235, 0.28);
+        border-radius: 50%;
+    }
+
+    .hero-visual::after {
+        inset: 34%;
+        border-color: rgba(20, 184, 166, 0.32);
+    }
+
+    .visual-node {
+        position: absolute;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        padding: 0.55rem 0.8rem;
+        font-weight: 800;
+        background: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color);
+        box-shadow: var(--app-shadow);
+        z-index: 1;
+    }
+
+    .node-main {
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        color: #fff;
+        background: linear-gradient(135deg, #2563eb, #14b8a6);
+        box-shadow: var(--app-glow);
+    }
+
+    .node-a { left: 8%; top: 18%; }
+    .node-b { right: 8%; top: 22%; }
+    .node-c { left: 13%; bottom: 18%; }
+    .node-d { right: 12%; bottom: 16%; }
+
+    .mission-card,
+    .stats-card,
+    .pipeline-card,
+    .model-card,
+    .challenge-card,
+    .member-card,
+    .values-card,
+    .roadmap-card,
+    .tech-card,
+    .about-cta {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--bs-body-bg) 90%, transparent);
+        box-shadow: var(--app-shadow);
+    }
+
+    .section-head {
+        max-width: 760px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .stats-card,
+    .pipeline-grid,
+    .model-grid,
+    .challenge-grid {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .pipeline-grid,
+    .model-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .model-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .challenge-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .about-stat,
+    .pipeline-card,
+    .model-card,
+    .challenge-card {
+        padding: 1rem;
+        transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+
+    .pipeline-card:hover,
+    .model-card:hover,
+    .challenge-card:hover,
+    .member-card:hover {
+        transform: translateY(-5px);
+        border-color: rgba(37, 99, 235, 0.28);
+        box-shadow: 0 20px 48px rgba(15, 23, 42, 0.14);
+    }
+
+    .about-stat {
+        border-radius: 8px;
+        background: var(--bs-tertiary-bg);
+    }
+
+    .about-stat .value {
+        font-size: 1.8rem;
+        font-weight: 800;
+        line-height: 1.1;
+    }
+
+    .about-stat .label {
+        color: var(--bs-secondary-color);
+        font-size: 0.9rem;
+    }
+
+    .pipeline-icon,
+    .challenge-card i,
+    .model-top i {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        font-size: 1.35rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .pipeline-card h5,
+    .model-card h4,
+    .challenge-card h5 {
+        font-weight: 800;
+    }
+
+    .pipeline-card p,
+    .model-card p,
+    .challenge-card p {
+        margin-bottom: 0;
+        color: var(--bs-secondary-color);
+    }
+
+    .model-card {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .model-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .model-top i {
+        margin-bottom: 0;
+        color: #fff;
+        background: linear-gradient(135deg, #2563eb, #14b8a6);
+    }
+
+    .model-top span {
+        border-radius: 999px;
+        padding: 0.28rem 0.62rem;
+        font-size: 0.74rem;
+        font-weight: 800;
+        color: var(--bs-primary);
+        background: rgba(37, 99, 235, 0.1);
+    }
+
+    .soon-model {
+        opacity: 0.88;
+        background:
+            repeating-linear-gradient(45deg, rgba(148, 163, 184, 0.08), rgba(148, 163, 184, 0.08) 10px, transparent 10px, transparent 20px),
+            var(--bs-body-bg);
+    }
+
+    .challenge-card i {
+        color: #2563eb;
+        background: rgba(37, 99, 235, 0.1);
+    }
+
+    .member-card {
+        transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+
+    .avatar-wrap {
+        width: 124px;
+        height: 124px;
+        border-radius: 50%;
+        padding: 4px;
+        background: linear-gradient(145deg, rgba(37, 99, 235, 0.42), rgba(20, 184, 166, 0.24));
+    }
+
+    .avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .member-role {
+        display: inline-block;
+        margin-top: 0.15rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .role-primary { background: rgba(13, 110, 253, 0.12); color: #0d6efd; }
+    .role-success { background: rgba(25, 135, 84, 0.12); color: #198754; }
+    .role-info { background: rgba(13, 202, 240, 0.14); color: #0aa2c0; }
+
+    .value-item {
+        padding: 0.8rem 0;
+        border-bottom: 1px solid var(--bs-border-color-translucent);
+    }
+
+    .value-item:last-child { border-bottom: 0; }
+    .value-item h6 { font-weight: 800; margin-bottom: 0.25rem; }
+    .value-item p { margin-bottom: 0; color: var(--bs-secondary-color); font-size: 0.92rem; }
+
+    .roadmap-line {
+        position: relative;
+    }
+
+    .roadmap-line::before {
+        content: "";
+        position: absolute;
+        left: 0.45rem;
+        top: 0.4rem;
+        bottom: 0.4rem;
+        width: 2px;
+        background: linear-gradient(180deg, #2563eb, rgba(37, 99, 235, 0.08));
+    }
+
+    .roadmap-item {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1.7rem 1fr;
+        gap: 0.8rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .roadmap-item:last-child { margin-bottom: 0; }
+
+    .roadmap-item .dot {
+        width: 1rem;
+        height: 1rem;
+        border-radius: 50%;
+        border: 3px solid #2563eb;
+        background: var(--bs-body-bg);
+        margin-top: 0.2rem;
+        z-index: 1;
+    }
+
+    .roadmap-item.done .dot,
+    .roadmap-item.active .dot {
+        background: #2563eb;
+        box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.12);
+    }
+
+    .tech-chip {
+        border: 1px solid var(--bs-border-color);
+        background: var(--bs-body-bg);
+        color: var(--bs-body-color);
+        padding: 0.5rem 0.85rem;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .about-cta {
+        background:
+            linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(20, 184, 166, 0.08)),
+            var(--bs-body-bg);
+    }
+
+    @media (max-width: 991.98px) {
+        .pipeline-grid,
+        .model-grid,
+        .challenge-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .pipeline-grid,
+        .model-grid,
+        .challenge-grid {
+            grid-template-columns: 1fr;
+        }
+        .hero-visual { min-height: 260px; }
+        .visual-node { font-size: 0.78rem; }
+    }
+</style>
+{% endblock %}

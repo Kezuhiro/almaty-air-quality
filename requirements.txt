@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+jinja2
+numpy
+pandas
+scikit-learn
+requests
+httpx
+catboost
+folium

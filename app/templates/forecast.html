@@ -1,0 +1,942 @@
+{% extends "base.html" %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<section class="forecast-page py-4 py-lg-5">
+    <div class="container">
+        {% if error %}
+            <div class="app-card forecast-error text-center p-4 p-lg-5">
+                <div class="empty-icon mb-3"><i class="bi bi-exclamation-triangle"></i></div>
+                <h3 class="fw-bold mb-2">Прогноз временно недоступен</h3>
+                <p class="text-muted mb-4">{{ error }}</p>
+                <a href="/" class="btn btn-outline-primary px-4">На главную</a>
+            </div>
+        {% else %}
+            {% set current_pm = data.current_pm25|default(0)|float %}
+            {% set tomorrow_pm = data.pm25|default(0)|float %}
+            {% set yesterday_pm = data.yesterday_pm25|default(current_pm)|float %}
+            {% set today_delta = current_pm - yesterday_pm %}
+            {% set tomorrow_delta = tomorrow_pm - current_pm %}
+            {% set current_status = 'Green' if current_pm <= 35 else 'Yellow' if current_pm <= 75 else 'Red' %}
+            {% set tomorrow_status = 'Green' if tomorrow_pm <= 35 else 'Yellow' if tomorrow_pm <= 75 else 'Red' %}
+            {% set current_tone = 'success' if current_pm <= 35 else 'warning' if current_pm <= 75 else 'danger' %}
+            {% set tomorrow_tone = 'success' if tomorrow_pm <= 35 else 'warning' if tomorrow_pm <= 75 else 'danger' %}
+
+            <div class="page-head mb-4">
+                <div>
+                    <span class="eyebrow">Cистема PM2.5 для Алматы</span>
+                    <h1 class="mb-2">Прогноз качества воздуха</h1>
+                    <p class="text-muted mb-0">CatBoost, Baseline и STGCN в одном рабочем дашборде.</p>
+                </div>
+                <div class="head-meta">
+                    <span><i class="bi bi-clock"></i> Обновлено: {{ data.updated_at|default('сейчас') }}</span>
+                </div>
+            </div>
+
+            <div class="now-grid mb-4">
+                <article class="app-card now-card">
+                    <div class="card-topline">
+                        <span>Сейчас</span>
+                        <span class="status-pill status-{{ current_status|lower }}">{{ current_status }}</span>
+                    </div>
+                    <div class="now-value">
+                        <span>{{ current_pm|round(1) }}</span>
+                        <small>мкг/м³ PM2.5</small>
+                    </div>
+                    <div class="delta-row {% if today_delta > 0 %}text-danger{% elif today_delta < 0 %}text-success{% else %}text-muted{% endif %}">
+                        {% if today_delta > 0 %}
+                            <i class="bi bi-arrow-up-right"></i> хуже на {{ today_delta|abs|round(1) }} к вчера
+                        {% elif today_delta < 0 %}
+                            <i class="bi bi-arrow-down-right"></i> лучше на {{ today_delta|abs|round(1) }} к вчера
+                        {% else %}
+                            <i class="bi bi-dash-lg"></i> без изменений к вчера
+                        {% endif %}
+                    </div>
+                </article>
+
+                <article class="app-card metric-card">
+                    <span class="metric-icon text-danger"><i class="bi bi-thermometer-half"></i></span>
+                    <div>
+                        <small>Температура</small>
+                        <strong>{{ data.temp|default('—') }}°C</strong>
+                    </div>
+                </article>
+                <article class="app-card metric-card">
+                    <span class="metric-icon text-info"><i class="bi bi-wind"></i></span>
+                    <div>
+                        <small>Ветер</small>
+                        <strong>{{ data.wind|default('—') }} м/с</strong>
+                    </div>
+                </article>
+                <article class="app-card metric-card">
+                    <span class="metric-icon text-primary"><i class="bi bi-activity"></i></span>
+                    <div>
+                        <small>Сейчас vs завтра</small>
+                        <strong class="{% if tomorrow_delta > 0 %}text-danger{% elif tomorrow_delta < 0 %}text-success{% endif %}">
+                            {{ '%+.1f'|format(tomorrow_delta) }}
+                        </strong>
+                    </div>
+                </article>
+            </div>
+
+            <div class="model-switch app-card mb-4" role="tablist" aria-label="Переключатель моделей">
+                <button class="model-tab active" data-tab="catboost" type="button">
+                    <i class="bi bi-calendar2-check"></i> CatBoost <span>Завтра</span>
+                </button>
+                <button class="model-tab" data-tab="baseline" type="button">
+                    <i class="bi bi-graph-up-arrow"></i> Baseline <span>24ч</span>
+                </button>
+                <button class="model-tab" data-tab="stgcn" type="button">
+                    <i class="bi bi-map"></i> STGCN <span>Карта</span>
+                </button>
+            </div>
+
+            <div class="loading-bar" id="tabLoading" aria-hidden="true"></div>
+
+            <div class="tab-panel active" id="tab-catboost">
+                <div class="row g-4">
+                    <div class="col-xl-5">
+                        <article class="app-card forecast-main-card h-100">
+                            <div class="card-topline">
+                                <span>CatBoost прогноз на {{ data.date }}</span>
+                                <span class="status-pill status-{{ tomorrow_status|lower }}">{{ tomorrow_status }}</span>
+                            </div>
+                            <div class="forecast-number">
+                                <span>{{ tomorrow_pm|round(1) }}</span>
+                                <small>мкг/м³</small>
+                            </div>
+                            <div class="aqi-strip border-{{ tomorrow_tone }}">
+                                <div>
+                                    <small>AQI индекс</small>
+                                    <strong>{{ data.aqi }}</strong>
+                                </div>
+                                <p class="mb-0">{{ data.advice }}</p>
+                            </div>
+                            <div class="vs-card">
+                                <span>Сейчас</span>
+                                <strong>{{ current_pm|round(1) }}</strong>
+                                <i class="bi bi-arrow-right"></i>
+                                <span>Завтра</span>
+                                <strong>{{ tomorrow_pm|round(1) }}</strong>
+                            </div>
+                        </article>
+                    </div>
+
+                    <div class="col-xl-7">
+                        <div class="row g-4">
+                            <div class="col-lg-6">
+                                <article class="app-card h-100">
+                                    <div class="section-title">
+                                        <h5>Рекомендации</h5>
+                                        <span>для повседневных решений</span>
+                                    </div>
+                                    <div class="recommend-list">
+                                        <div class="recommend-item">
+                                            <i class="bi bi-shield-check"></i>
+                                            <div><small>Маска</small><strong>{% if tomorrow_pm > 75 %}FFP2 на улице{% elif tomorrow_pm > 35 %}для чувствительных групп{% else %}не нужна{% endif %}</strong></div>
+                                        </div>
+                                        <div class="recommend-item">
+                                            <i class="bi bi-person-walking"></i>
+                                            <div><small>Спорт</small><strong>{% if tomorrow_pm > 75 %}лучше в помещении{% elif tomorrow_pm > 35 %}умеренная нагрузка{% else %}можно на улице{% endif %}</strong></div>
+                                        </div>
+                                        <div class="recommend-item">
+                                            <i class="bi bi-window"></i>
+                                            <div><small>Окна</small><strong>{% if tomorrow_pm > 75 %}держать закрытыми{% elif tomorrow_pm > 35 %}проветривать коротко{% else %}проветривать можно{% endif %}</strong></div>
+                                        </div>
+                                        <div class="recommend-item">
+                                            <i class="bi bi-emoji-smile"></i>
+                                            <div><small>Дети</small><strong>{% if tomorrow_pm > 75 %}прогулки сократить{% elif tomorrow_pm > 35 %}наблюдать самочувствие{% else %}обычный режим{% endif %}</strong></div>
+                                        </div>
+                                    </div>
+                                </article>
+                            </div>
+
+                            <div class="col-lg-6">
+                                <article class="app-card h-100">
+                                    <div class="section-title">
+                                        <h5>Почему такой прогноз</h5>
+                                        <span>ключевые факторы модели</span>
+                                    </div>
+                                    <div class="factor-list">
+                                        <div><span class="factor-dot bg-info"></span> Слабый ветер снижает рассеивание PM2.5</div>
+                                        <div><span class="factor-dot bg-warning"></span> Вероятность температурной инверсии в котловине</div>
+                                    </div>
+                                </article>
+                            </div>
+
+                            <div class="col-12">
+                                <article class="app-card">
+                                    <div class="section-title">
+                                        <h5>Метео и тренд за последние часы</h5>
+                                        <span>входные признаки для прогноза</span>
+                                    </div>
+                                    <div class="weather-grid">
+                                        <div><small>Температура</small><strong>{{ data.temp|default('—') }}°C</strong></div>
+                                        <div><small>Ветер</small><strong>{{ data.wind|default('—') }} м/с</strong></div>
+                                        <div><small>Давление</small><strong>{{ data.pressure|default(920) }} гПа</strong></div>
+                                        <div><small>Влажность</small><strong>{{ data.humidity|default(44) }}%</strong></div>
+                                    </div>
+                                    <div class="mini-chart-wrap mt-3">
+                                        <canvas id="trendChart"></canvas>
+                                    </div>
+                                </article>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" id="tab-baseline">
+                <article class="app-card">
+                    <div class="placeholder-head">
+                        <div>
+                            <span class="eyebrow">Baseline 24ч</span>
+                            <h3 class="mb-1">Модель в разработке</h3>
+                            <p class="text-muted mb-0">Здесь будет почасовой прогноз PM2.5 на ближайшие 24 часа.</p>
+                        </div>
+                        <span class="dev-badge"><i class="bi bi-tools"></i> roadmap</span>
+                    </div>
+                    <div class="baseline-chart-wrap">
+                        <canvas id="baselineChart"></canvas>
+                    </div>
+                    <p class="chart-caption mb-0">Пустой график: прогноз на 24 часа появится после подключения baseline-модели.</p>
+                </article>
+            </div>
+
+            <div class="tab-panel" id="tab-stgcn">
+            <div class="row g-4">
+                <div class="col-xl-8">
+                    <article class="app-card map-card h-100">
+                        <div class="section-title">
+                            <div>
+                                <h5>STGCN: Пространственный прогноз</h5>
+                                <span class="text-muted">Сетка из 24 станций. Нажмите на точку для деталей.</span>
+                            </div>
+                        </div>
+                        <div id="stgcnMap"></div>
+                        <div class="map-legend mt-3">
+                            <span><i class="legend-dot green"></i> Хорошо (≤35)</span>
+                            <span><i class="legend-dot yellow"></i> Средне (36-75)</span>
+                            <span><i class="legend-dot red"></i> Опасно (>75)</span>
+                            <span class="ms-auto text-muted small"><i class="bi bi-info-circle"></i> Цвета показывают прогноз, а не текущий статус</span>
+                        </div>
+                    </article>
+                </div>
+                
+                <div class="col-xl-4">
+                    <article class="app-card h-100">
+                        <div class="section-title">
+                            <div>
+                                <h5>Метрики графа</h5>
+                                <span class="text-muted">Анализ сети в реальном времени</span>
+                            </div>
+                        </div>
+                        <div class="network-summary" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="bg-primary-subtle border border-primary-subtle">
+                                <small class="text-primary">Максимальный риск</small>
+                                <strong id="maxStation" class="fs-5">—</strong>
+                            </div>
+                            <div>
+                                <small>Всего узлов</small>
+                                <strong class="fs-4">{{ stgcn_stations|length }}</strong>
+                            </div>
+                            <div>
+                                <small>Online датчиков (Real)</small>
+                                <strong id="realCount" class="text-success fs-4">—</strong>
+                            </div>
+                            <div>
+                                <small>Восстановлено (Imputed)</small>
+                                <strong id="imputedCount" class="text-warning fs-4">—</strong>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <p class="small text-muted mb-0">
+                                <i class="bi bi-shield-check text-success"></i> 
+                                Система Spatial Imputer автоматически восстанавливает упавшие датчики по географической сетке.
+                            </p>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="col-12">
+                    <article class="app-card">
+                        <div class="section-title mb-0 border-bottom pb-3">
+                            <h5 class="mb-0">Детализация по станциям</h5>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 station-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Станция</th>
+                                        <th>Сейчас (мкг/м³)</th>
+                                        <th>Прогноз (мкг/м³)</th>
+                                        <th>Динамика</th>
+                                        <th>Будущий статус</th>
+                                        <th>Состояние сенсора</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stationTableBody"></tbody>
+                            </table>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+{% if not error %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    (() => {
+        const trendLabels = {{ data.trend_labels|default([])|tojson }};
+        const trendValues = {{ data.trend_values|default([])|tojson }};
+        const stations = {{ stgcn_stations|default([])|tojson }};
+        let mapInitialized = false;
+
+        const statusFor = (pm) => pm <= 35 ? 'Green' : pm <= 75 ? 'Yellow' : 'Red';
+        const colorFor = (pm) => pm <= 35 ? '#22c55e' : pm <= 75 ? '#f59e0b' : '#ef4444';
+
+        const tabButtons = document.querySelectorAll('.model-tab');
+        const tabPanels = document.querySelectorAll('.tab-panel');
+        const loading = document.getElementById('tabLoading');
+
+        const showTab = (tab) => {
+            loading.classList.add('active');
+            window.setTimeout(() => loading.classList.remove('active'), 380);
+
+            tabButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
+            tabPanels.forEach((panel) => panel.classList.toggle('active', panel.id === `tab-${tab}`));
+
+            if (tab === 'stgcn') {
+                window.setTimeout(initMap, 80);
+            }
+        };
+
+        tabButtons.forEach((btn) => btn.addEventListener('click', () => showTab(btn.dataset.tab)));
+
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: trendLabels,
+                datasets: [{
+                    label: 'PM2.5',
+                    data: trendValues,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(148, 163, 184, 0.18)' } }
+                }
+            }
+        });
+
+        const baselineCtx = document.getElementById('baselineChart').getContext('2d');
+        new Chart(baselineCtx, {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`),
+                datasets: [{
+                    label: 'PM2.5 forecast',
+                    data: Array(24).fill(null),
+                    borderColor: '#94a3b8',
+                    borderDash: [6, 6],
+                    borderWidth: 2,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, suggestedMax: 120, grid: { color: 'rgba(148, 163, 184, 0.18)' } }
+                }
+            }
+        });
+
+        const renderStationTable = () => {
+            const body = document.getElementById('stationTableBody');
+            let maxForecast = 0;
+            let maxStation = "";
+
+            body.innerHTML = stations.map((station) => {
+                const status = statusFor(Number(station.pm25));
+                const delta = station.delta;
+                
+                // Настраиваем цвета и иконки для динамики (дельты)
+                const deltaColor = delta > 0 ? 'text-danger' : (delta < 0 ? 'text-success' : 'text-muted');
+                const deltaIcon = delta > 0 ? 'bi-arrow-up-right' : (delta < 0 ? 'bi-arrow-down-right' : 'bi-arrow-right');
+                const deltaText = delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1);
+
+                // Ищем самую грязную станцию по прогнозу
+                if (station.pm25 > maxForecast) {
+                    maxForecast = station.pm25;
+                    maxStation = station.name;
+                }
+
+                return `
+                    <tr>
+                        <td class="fw-semibold text-dark">${station.name}</td>
+                        <td class="text-muted">${station.current_pm25.toFixed(1)}</td>
+                        <td class="fw-bold fs-6">${station.pm25.toFixed(1)}</td>
+                        <td class="${deltaColor} fw-semibold small"><i class="bi ${deltaIcon}"></i> ${deltaText}</td>
+                        <td><span class="status-pill status-${status.toLowerCase()}">${status}</span></td>
+                        <td><span class="source-chip ${station.source}">${station.source === 'real' ? '<i class="bi bi-wifi"></i> Real' : '<i class="bi bi-cpu"></i> Imputed'}</span></td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Обновляем статистику в карточке "Сводка сети"
+            document.getElementById('realCount').textContent = stations.filter((s) => s.source === 'real').length;
+            document.getElementById('imputedCount').textContent = stations.filter((s) => s.source !== 'real').length;
+            
+            const maxEl = document.getElementById('maxStation');
+            if (maxEl && maxStation !== "") {
+                maxEl.innerHTML = `${maxStation} <br><span class="text-danger fw-bold fs-6">${maxForecast.toFixed(1)}</span>`;
+            }
+        };
+
+        const initMap = () => {
+            if (mapInitialized) return;
+            mapInitialized = true;
+
+            const map = L.map('stgcnMap', { scrollWheelZoom: false }).setView([43.25, 76.90], 11);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 18,
+                attribution: '&copy; OpenStreetMap &copy; CARTO'
+            }).addTo(map);
+
+            stations.forEach((station) => {
+                const pm = Number(station.pm25);
+                const status = statusFor(pm);
+                
+                // Создаем информативный Popup (тултип) при нажатии на станцию
+                const popupContent = `
+                    <div style="min-width: 140px; font-family: system-ui;">
+                        <h6 style="margin-bottom: 8px; font-weight: 800; border-bottom: 1px solid #eee; padding-bottom: 4px;">${station.name}</h6>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="color: #64748b;">Сейчас:</span>
+                            <strong>${station.current_pm25.toFixed(1)}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="color: #64748b;">Прогноз:</span>
+                            <strong style="color: ${colorFor(pm)};">${station.pm25.toFixed(1)}</strong>
+                        </div>
+                        <div style="margin-top: 8px; font-size: 0.85em; color: #64748b;">
+                            Статус сети: ${station.source === 'real' ? '🟢 Online' : '🟠 Imputed'}
+                        </div>
+                    </div>
+                `;
+
+                L.circleMarker([station.lat, station.lon], {
+                    radius: 8,
+                    color: '#ffffff',
+                    weight: 2,
+                    fillColor: colorFor(pm), // Цвет кружочка - это ПРОГНОЗ
+                    fillOpacity: 0.95
+                })
+                .addTo(map)
+                .bindPopup(popupContent);
+            });
+
+            window.setTimeout(() => map.invalidateSize(), 120);
+        };
+        renderStationTable();
+    })();
+</script>
+{% endif %}
+
+<style>
+    .forecast-page {
+        background:
+            linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0));
+    }
+
+    [data-bs-theme="dark"] .forecast-page {
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0));
+    }
+
+    .page-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .page-head h1 {
+        font-size: clamp(2rem, 4vw, 3.2rem);
+        line-height: 1.05;
+        font-weight: 800;
+    }
+
+    .eyebrow {
+        display: inline-block;
+        margin-bottom: 0.45rem;
+        color: var(--bs-primary);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .head-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        color: var(--bs-secondary-color);
+        font-size: 0.88rem;
+        text-align: right;
+    }
+
+    .app-card {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        background: var(--bs-body-bg);
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .app-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(37, 99, 235, 0.28);
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+    }
+
+    .now-grid {
+        display: grid;
+        grid-template-columns: minmax(260px, 1.35fr) repeat(3, minmax(170px, 0.75fr));
+        gap: 1rem;
+    }
+
+    .now-card,
+    .forecast-main-card,
+    .app-card:not(.model-switch) {
+        padding: 1.25rem;
+    }
+
+    .card-topline,
+    .section-title,
+    .placeholder-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .card-topline span:first-child,
+    .section-title span {
+        color: var(--bs-secondary-color);
+        font-size: 0.84rem;
+        font-weight: 700;
+    }
+
+    .section-title h5 {
+        margin: 0;
+        font-weight: 800;
+    }
+
+    .now-value span,
+    .forecast-number span {
+        display: block;
+        font-size: clamp(3.4rem, 8vw, 6.2rem);
+        font-weight: 800;
+        line-height: 0.9;
+        letter-spacing: 0;
+    }
+
+    .now-value small,
+    .forecast-number small {
+        color: var(--bs-secondary-color);
+        font-weight: 700;
+    }
+
+    .delta-row {
+        margin-top: 1rem;
+        font-weight: 800;
+    }
+
+    .metric-card {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        padding: 1rem;
+    }
+
+    .metric-icon {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--bs-tertiary-bg);
+        font-size: 1.35rem;
+    }
+
+    .metric-card small,
+    .weather-grid small,
+    .network-summary small {
+        display: block;
+        color: var(--bs-secondary-color);
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .metric-card strong,
+    .weather-grid strong,
+    .network-summary strong {
+        display: block;
+        font-size: 1.2rem;
+        font-weight: 800;
+    }
+
+    .model-switch {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        padding: 0.35rem;
+        box-shadow: none;
+    }
+
+    .model-tab {
+        border: 0;
+        border-radius: 8px;
+        padding: 0.85rem 1rem;
+        background: transparent;
+        color: var(--bs-secondary-color);
+        font-weight: 800;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .model-tab span {
+        color: inherit;
+        opacity: 0.7;
+        font-weight: 700;
+    }
+
+    .model-tab.active {
+        background: #2563eb;
+        color: #fff;
+        box-shadow: 0 8px 22px rgba(37, 99, 235, 0.25);
+    }
+
+    .tab-panel {
+        display: none;
+        animation: panel-in 0.28s ease;
+    }
+
+    .tab-panel.active {
+        display: block;
+    }
+
+    .loading-bar {
+        height: 3px;
+        width: 100%;
+        overflow: hidden;
+        border-radius: 999px;
+        margin-bottom: 1rem;
+        background: transparent;
+    }
+
+    .loading-bar.active::before {
+        content: "";
+        display: block;
+        width: 42%;
+        height: 100%;
+        background: #2563eb;
+        animation: loading 0.38s ease;
+    }
+
+    .status-pill,
+    .source-chip,
+    .dev-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        padding: 0.32rem 0.62rem;
+        font-size: 0.76rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .status-green { color: #15803d; background: rgba(34, 197, 94, 0.12); }
+    .status-yellow { color: #92400e; background: rgba(245, 158, 11, 0.16); }
+    .status-red { color: #b91c1c; background: rgba(239, 68, 68, 0.14); }
+
+    .forecast-main-card {
+        background:
+            linear-gradient(145deg, rgba(37, 99, 235, 0.08), rgba(34, 197, 94, 0.04)),
+            var(--bs-body-bg);
+    }
+
+    .aqi-strip {
+        border-left: 4px solid;
+        border-radius: 8px;
+        background: var(--bs-tertiary-bg);
+        padding: 1rem;
+        margin: 1.25rem 0;
+        display: grid;
+        grid-template-columns: 110px 1fr;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .aqi-strip small {
+        display: block;
+        color: var(--bs-secondary-color);
+        font-weight: 700;
+    }
+
+    .aqi-strip strong {
+        font-size: 2rem;
+        line-height: 1;
+    }
+
+    .vs-card {
+        display: grid;
+        grid-template-columns: auto 1fr auto auto 1fr;
+        gap: 0.7rem;
+        align-items: center;
+        color: var(--bs-secondary-color);
+        font-weight: 700;
+    }
+
+    .vs-card strong {
+        color: var(--bs-body-color);
+        font-size: 1.35rem;
+    }
+
+    .recommend-list,
+    .factor-list {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .recommend-item {
+        display: flex;
+        gap: 0.8rem;
+        align-items: center;
+        padding: 0.8rem;
+        border-radius: 8px;
+        background: var(--bs-tertiary-bg);
+    }
+
+    .recommend-item i {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        color: #2563eb;
+        background: rgba(37, 99, 235, 0.1);
+        font-size: 1.1rem;
+    }
+
+    .recommend-item small {
+        display: block;
+        color: var(--bs-secondary-color);
+        font-weight: 700;
+    }
+
+    .recommend-item strong {
+        display: block;
+        font-weight: 800;
+    }
+
+    .factor-list div {
+        display: flex;
+        gap: 0.65rem;
+        align-items: flex-start;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+
+    .factor-list div:last-child {
+        border-bottom: 0;
+    }
+
+    .factor-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-top: 0.45rem;
+        flex: 0 0 auto;
+    }
+
+    .weather-grid,
+    .network-summary {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.8rem;
+    }
+
+    .weather-grid div,
+    .network-summary div {
+        padding: 0.85rem;
+        border-radius: 8px;
+        background: var(--bs-tertiary-bg);
+    }
+
+    .mini-chart-wrap {
+        height: 220px;
+    }
+
+    .placeholder-head {
+        align-items: center;
+    }
+
+    .dev-badge {
+        color: #475569;
+        background: #e2e8f0;
+    }
+
+    [data-bs-theme="dark"] .dev-badge {
+        color: #e2e8f0;
+        background: #334155;
+    }
+
+    .baseline-chart-wrap {
+        height: 360px;
+        margin-top: 1rem;
+        border-radius: 8px;
+        background: repeating-linear-gradient(45deg, rgba(148, 163, 184, 0.08), rgba(148, 163, 184, 0.08) 10px, transparent 10px, transparent 20px);
+        padding: 1rem;
+    }
+
+    .chart-caption {
+        color: var(--bs-secondary-color);
+        font-size: 0.9rem;
+    }
+
+    #stgcnMap {
+        height: 520px;
+        border-radius: 8px;
+        border: 1px solid var(--bs-border-color);
+        overflow: hidden;
+    }
+
+    .map-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.9rem;
+        margin-top: 1rem;
+        color: var(--bs-secondary-color);
+        font-weight: 800;
+        font-size: 0.86rem;
+    }
+
+    .legend-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 0.35rem;
+    }
+
+    .legend-dot.green { background: #22c55e; }
+    .legend-dot.yellow { background: #f59e0b; }
+    .legend-dot.red { background: #ef4444; }
+
+    .network-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .station-table thead th {
+        color: var(--bs-secondary-color);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .source-chip.real {
+        color: #075985;
+        background: rgba(14, 165, 233, 0.14);
+    }
+
+    .source-chip.imputed {
+        color: #6d28d9;
+        background: rgba(124, 58, 237, 0.14);
+    }
+
+    .forecast-error {
+        max-width: 720px;
+        margin: 0 auto;
+    }
+
+    .empty-icon {
+        width: 64px;
+        height: 64px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto;
+        border-radius: 8px;
+        color: #ef4444;
+        background: rgba(239, 68, 68, 0.12);
+        font-size: 1.6rem;
+    }
+
+    @keyframes panel-in {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes loading {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(240%); }
+    }
+
+    @media (max-width: 992px) {
+        .page-head {
+            display: block;
+        }
+
+        .head-meta {
+            text-align: left;
+            margin-top: 1rem;
+        }
+
+        .now-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .now-grid,
+        .model-switch,
+        .weather-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .aqi-strip {
+            grid-template-columns: 1fr;
+        }
+
+        .vs-card {
+            grid-template-columns: 1fr;
+            gap: 0.25rem;
+        }
+
+        #stgcnMap {
+            height: 420px;
+        }
+    }
+</style>
+{% endblock %}

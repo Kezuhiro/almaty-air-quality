@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  air_quality_api:
+    build: .
+    container_name: almaty_air_api
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    # Если вынесешь ключи OpenAQ в .env файл, раскомментируй строки ниже:
+    # env_file:
+    #   - .env

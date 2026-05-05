@@ -1,0 +1,1 @@
+{"features": ["pm25_lag1", "pm10_lag1", "pm25_roll7", "temp_mean", "temp_min", "temp_max", "wind_speed_mean", "wind_speed_max", "precip", "pressure", "heating_intensity", "is_stagnation", "ventilation", "inversion_potential", "wind_from_mountains", "month_sin", "month_cos", "day_of_week"], "target": "pm25", "description": "Hybrid CatBoost (Gap-Safe)"}

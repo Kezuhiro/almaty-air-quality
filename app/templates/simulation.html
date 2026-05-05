@@ -1,0 +1,1835 @@
+{% extends "base.html" %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+
+<style>
+    :root {
+        --sim-shell: rgba(255, 255, 255, 0.8);
+        --sim-shell-strong: rgba(255, 255, 255, 0.94);
+        --sim-border: rgba(148, 163, 184, 0.24);
+        --sim-text-soft: #5b6577;
+        --sim-shadow: 0 26px 60px rgba(15, 23, 42, 0.12);
+        --sim-shadow-soft: 0 18px 42px rgba(15, 23, 42, 0.08);
+        --sim-accent: #0f766e;
+        --sim-accent-2: #2563eb;
+        --sim-warm: #f97316;
+        --sim-danger: #dc2626;
+        --sim-success: #16a34a;
+    }
+
+    [data-bs-theme="dark"] {
+        --sim-shell: rgba(15, 23, 42, 0.76);
+        --sim-shell-strong: rgba(15, 23, 42, 0.92);
+        --sim-border: rgba(148, 163, 184, 0.16);
+        --sim-text-soft: #9aa5b8;
+        --sim-shadow: 0 26px 60px rgba(2, 6, 23, 0.42);
+        --sim-shadow-soft: 0 18px 42px rgba(2, 6, 23, 0.28);
+    }
+
+    .simulation-page {
+        position: relative;
+        overflow: hidden;
+        background:
+            radial-gradient(circle at 0% 0%, rgba(37, 99, 235, 0.12), transparent 30rem),
+            radial-gradient(circle at 100% 0%, rgba(20, 184, 166, 0.14), transparent 26rem),
+            linear-gradient(180deg, rgba(248, 250, 252, 0.7), rgba(241, 245, 249, 0.1));
+    }
+
+    [data-bs-theme="dark"] .simulation-page {
+        background:
+            radial-gradient(circle at 0% 0%, rgba(14, 165, 233, 0.14), transparent 30rem),
+            radial-gradient(circle at 100% 0%, rgba(16, 185, 129, 0.12), transparent 26rem),
+            linear-gradient(180deg, rgba(2, 6, 23, 0.5), rgba(15, 23, 42, 0.12));
+    }
+
+    .sim-sidebar {
+        position: sticky;
+        top: 88px;
+    }
+
+    .sim-panel,
+    .sim-map-wrap,
+    .sim-kpi {
+        border: 1px solid var(--sim-border);
+        background: var(--sim-shell);
+        backdrop-filter: blur(22px);
+        border-radius: 28px;
+        box-shadow: var(--sim-shadow-soft);
+    }
+
+    .sim-panel {
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .sim-hero {
+        position: relative;
+        overflow: hidden;
+        background:
+            linear-gradient(155deg, rgba(14, 165, 233, 0.18), rgba(15, 118, 110, 0.08)),
+            var(--sim-shell-strong);
+    }
+
+    .sim-hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -40px -70px auto;
+        width: 160px;
+        height: 160px;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.2), transparent 70%);
+        pointer-events: none;
+    }
+
+    .sim-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #0f766e;
+        background: rgba(15, 118, 110, 0.1);
+    }
+
+    .sim-hero h1 {
+        margin-top: 1rem;
+        font-size: clamp(1.65rem, 2.2vw, 2.35rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .sim-hero p,
+    .sim-panel-copy,
+    .sim-help-item,
+    .sim-kpi-note,
+    .sim-muted {
+        color: var(--sim-text-soft);
+    }
+
+    .sim-hero-metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .sim-hero-metrics div,
+    .sim-summary-card {
+        padding: 0.85rem 0.95rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.48);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+    }
+
+    [data-bs-theme="dark"] .sim-hero-metrics div,
+    [data-bs-theme="dark"] .sim-summary-card {
+        background: rgba(30, 41, 59, 0.46);
+        border-color: rgba(148, 163, 184, 0.14);
+    }
+
+    .sim-hero-metrics span,
+    .sim-summary-card span,
+    .sim-mini-label,
+    .sim-kpi-label,
+    .sim-section-label {
+        display: block;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--sim-text-soft);
+    }
+
+    .sim-hero-metrics strong,
+    .sim-summary-card strong {
+        display: block;
+        margin-top: 0.3rem;
+        font-size: 1rem;
+        font-weight: 800;
+        line-height: 1.2;
+    }
+
+    .sim-panel-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .sim-panel-head h2,
+    .sim-panel-head h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+
+    .sim-panel-head p {
+        margin: 0.2rem 0 0;
+        font-size: 0.85rem;
+        color: var(--sim-text-soft);
+    }
+
+    .sim-presets {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .sim-preset-btn {
+        width: 100%;
+        border: 1px solid var(--sim-border);
+        background: transparent;
+        color: inherit;
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        text-align: left;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .sim-preset-btn:hover,
+    .sim-preset-btn.active {
+        transform: translateY(-2px);
+        border-color: rgba(37, 99, 235, 0.35);
+        background: rgba(37, 99, 235, 0.08);
+        box-shadow: 0 12px 28px rgba(37, 99, 235, 0.14);
+    }
+
+    .sim-preset-btn strong {
+        display: block;
+        font-size: 0.95rem;
+        font-weight: 800;
+    }
+
+    .sim-preset-btn span {
+        display: block;
+        margin-top: 0.2rem;
+        color: var(--sim-text-soft);
+        font-size: 0.82rem;
+    }
+
+    .sim-controls {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .sim-control {
+        border: 1px solid var(--sim-border);
+        border-radius: 18px;
+        padding: 0.85rem 0.95rem;
+        background: rgba(255, 255, 255, 0.42);
+    }
+
+    [data-bs-theme="dark"] .sim-control {
+        background: rgba(30, 41, 59, 0.3);
+    }
+
+    .sim-control-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 1rem;
+        margin-bottom: 0.45rem;
+    }
+
+    .sim-control-head label {
+        font-size: 0.9rem;
+        font-weight: 700;
+    }
+
+    .sim-control-value {
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--sim-accent-2);
+    }
+
+    .sim-control small {
+        display: block;
+        font-size: 0.78rem;
+        color: var(--sim-text-soft);
+    }
+
+    .sim-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .sim-actions .btn {
+        border-radius: 16px;
+        padding: 0.8rem 0.95rem;
+    }
+
+    .sim-actions .btn-dark {
+        background: linear-gradient(135deg, #0f172a, #1d4ed8);
+        border: none;
+    }
+
+    .sim-actions .btn-outline-secondary {
+        border-color: var(--sim-border);
+    }
+
+    .sim-kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .sim-kpi {
+        padding: 1.15rem;
+        min-height: 150px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.62));
+    }
+
+    [data-bs-theme="dark"] .sim-kpi {
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.72));
+    }
+
+    .sim-kpi-value {
+        font-size: clamp(1.7rem, 2vw, 2.1rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1;
+    }
+
+    .sim-kpi-note {
+        font-size: 0.86rem;
+        margin-top: 0.45rem;
+    }
+
+    .sim-map-wrap {
+        padding: 1rem;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.72));
+    }
+
+    [data-bs-theme="dark"] .sim-map-wrap {
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.78));
+    }
+
+    .sim-map-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .sim-map-toolbar h2 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 800;
+    }
+
+    .sim-map-toolbar p {
+        margin: 0.3rem 0 0.65rem;
+        color: var(--sim-text-soft);
+        max-width: 52rem;
+    }
+
+    .sim-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+    }
+
+    .sim-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        border: 1px solid var(--sim-border);
+        background: rgba(255, 255, 255, 0.52);
+    }
+
+    [data-bs-theme="dark"] .sim-chip {
+        background: rgba(30, 41, 59, 0.42);
+    }
+
+    .sim-map-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.65rem;
+    }
+
+    .sim-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.65rem 0.85rem;
+        border-radius: 16px;
+        border: 1px solid var(--sim-border);
+        background: rgba(255, 255, 255, 0.48);
+    }
+
+    [data-bs-theme="dark"] .sim-toggle {
+        background: rgba(30, 41, 59, 0.32);
+    }
+
+    .sim-map-stage {
+        position: relative;
+        overflow: hidden;
+        border-radius: 24px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: var(--sim-shadow);
+    }
+
+    #map {
+        width: 100%;
+        height: clamp(480px, 66vh, 760px);
+    }
+
+    .sim-floating {
+        position: absolute;
+        z-index: 8;
+        display: grid;
+        gap: 0.65rem;
+        max-width: min(300px, calc(100% - 1.4rem));
+    }
+
+    .sim-floating-left {
+        top: 1rem;
+        left: 1rem;
+    }
+
+    .sim-floating-right {
+        top: 1rem;
+        right: 1rem;
+    }
+
+    .sim-status-pill,
+    .sim-legend,
+    .sim-mini-card {
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(15, 23, 42, 0.8);
+        color: #f8fafc;
+        backdrop-filter: blur(16px);
+        box-shadow: 0 14px 30px rgba(2, 6, 23, 0.28);
+    }
+
+    .sim-status-pill {
+        padding: 0.75rem 0.95rem;
+        font-weight: 800;
+        font-size: 0.85rem;
+    }
+
+    .sim-status-pill[data-tone="success"] { color: #dcfce7; }
+    .sim-status-pill[data-tone="warning"] { color: #fef3c7; }
+    .sim-status-pill[data-tone="danger"] { color: #fee2e2; }
+    .sim-status-pill[data-tone="info"] { color: #dbeafe; }
+
+    .sim-legend,
+    .sim-mini-card {
+        padding: 0.85rem 0.95rem;
+    }
+
+    .sim-legend-title {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: rgba(226, 232, 240, 0.8);
+        margin-bottom: 0.6rem;
+    }
+
+    .sim-legend-scale {
+        display: grid;
+        gap: 0.45rem;
+    }
+
+    .sim-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        font-size: 0.8rem;
+    }
+
+    .sim-legend-swatch {
+        width: 0.9rem;
+        height: 0.9rem;
+        border-radius: 999px;
+        flex: 0 0 auto;
+    }
+
+    .sim-mini-card strong {
+        font-size: 1.05rem;
+        font-weight: 800;
+    }
+
+    .sim-loading {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.26);
+        backdrop-filter: blur(3px);
+    }
+
+    .sim-loading-card {
+        min-width: 240px;
+        border-radius: 20px;
+        padding: 1rem 1.2rem;
+        background: rgba(255, 255, 255, 0.96);
+        color: #0f172a;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+        text-align: center;
+    }
+
+    .sim-loading-card .spinner-border {
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .sim-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .sim-summary-card strong {
+        font-size: 1.05rem;
+    }
+
+    .insight-card {
+        padding: 0.9rem 0.95rem;
+        border-radius: 18px;
+        border: 1px solid var(--sim-border);
+        background: rgba(255, 255, 255, 0.45);
+    }
+
+    [data-bs-theme="dark"] .insight-card {
+        background: rgba(30, 41, 59, 0.32);
+    }
+
+    .insight-card p {
+        margin: 0.45rem 0 0;
+        font-size: 0.84rem;
+        color: var(--sim-text-soft);
+    }
+
+    .insight-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.65rem;
+        align-items: center;
+        font-size: 0.88rem;
+        font-weight: 800;
+    }
+
+    .insight-bar {
+        margin-top: 0.6rem;
+        height: 0.35rem;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(148, 163, 184, 0.18);
+    }
+
+    .insight-bar span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+    }
+
+    .station-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .station-card {
+        width: 100%;
+        text-align: left;
+        border: 1px solid var(--sim-border);
+        background: rgba(255, 255, 255, 0.48);
+        border-radius: 18px;
+        padding: 0.9rem 0.95rem;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    [data-bs-theme="dark"] .station-card {
+        background: rgba(30, 41, 59, 0.32);
+    }
+
+    .station-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 26px rgba(15, 23, 42, 0.08);
+        border-color: rgba(37, 99, 235, 0.32);
+    }
+
+    .station-card-top,
+    .station-card-bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .station-card-bottom {
+        margin-top: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    .station-card strong {
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .station-card small {
+        color: var(--sim-text-soft);
+    }
+
+    .sim-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.32rem 0.58rem;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 800;
+    }
+
+    .sim-pill.success { color: #166534; background: rgba(34, 197, 94, 0.14); }
+    .sim-pill.warning { color: #92400e; background: rgba(245, 158, 11, 0.16); }
+    .sim-pill.danger { color: #991b1b; background: rgba(239, 68, 68, 0.15); }
+    .sim-pill.info { color: #1d4ed8; background: rgba(59, 130, 246, 0.14); }
+    .sim-pill.neutral { color: #475569; background: rgba(148, 163, 184, 0.16); }
+
+    .sim-compare-box,
+    .sim-help-box {
+        border-radius: 18px;
+        border: 1px dashed var(--sim-border);
+        padding: 0.95rem;
+        background: rgba(255, 255, 255, 0.36);
+    }
+
+    [data-bs-theme="dark"] .sim-compare-box,
+    [data-bs-theme="dark"] .sim-help-box {
+        background: rgba(30, 41, 59, 0.24);
+    }
+
+    .sim-help-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .sim-help-item strong {
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+
+    .ranking-toggle .btn {
+        border-radius: 999px;
+    }
+
+    .maplibregl-popup-content {
+        border-radius: 18px;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.2);
+        padding: 0.95rem 1rem;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    @media (max-width: 1399.98px) {
+        .sim-kpis {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 1199.98px) {
+        .sim-sidebar {
+            position: static;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .sim-panel,
+        .sim-map-wrap,
+        .sim-kpi {
+            border-radius: 22px;
+        }
+
+        .sim-map-toolbar,
+        .sim-panel-head {
+            flex-direction: column;
+        }
+
+        .sim-kpis,
+        .sim-summary-grid,
+        .sim-actions,
+        .sim-hero-metrics {
+            grid-template-columns: 1fr;
+        }
+
+        .sim-floating {
+            position: static;
+            max-width: none;
+            margin: 0.85rem;
+        }
+
+        .sim-map-stage {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #map {
+            height: 460px;
+        }
+    }
+</style>
+
+<div class="simulation-page">
+    <div class="container-fluid px-3 px-lg-4 py-4">
+        <div class="row g-4 align-items-start">
+            <div class="col-12 col-xl-4 col-xxl-3">
+                <aside class="sim-sidebar">
+                    <section class="sim-panel sim-hero app-fade-in">
+                        <span class="sim-badge"><i class="bi bi-cpu-fill"></i> Digital Twin</span>
+                        <h1>Сценарная симуляция PM2.5</h1>
+                        <p>Управляйте погодными условиями и временем суток, а STGCN перераспределит загрязнение по городской сети наблюдений. Это экран для быстрых what-if сценариев, а не только для просмотра карты.</p>
+                        <div class="sim-hero-metrics">
+                            <div>
+                                <span>Узлы графа</span>
+                                <strong>24 станции</strong>
+                            </div>
+                            <div>
+                                <span>Модель</span>
+                                <strong>STGCN</strong>
+                            </div>
+                            <div>
+                                <span>Выход</span>
+                                <strong>3D поле PM2.5</strong>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="sim-panel app-fade-in">
+                        <div class="sim-panel-head">
+                            <div>
+                                <h2>Готовые сценарии</h2>
+                                <p>Быстрый старт для характерных режимов атмосферы в Алматы.</p>
+                            </div>
+                        </div>
+                        <div class="sim-presets">
+                            <button type="button" class="sim-preset-btn" data-preset="inversion">
+                                <strong><i class="bi bi-cloud-haze2"></i> Инверсия</strong>
+                                <span>Холодно, влажно и почти без ветра. Риск накопления смога.</span>
+                            </button>
+                            <button type="button" class="sim-preset-btn" data-preset="breeze">
+                                <strong><i class="bi bi-wind"></i> Горный бриз</strong>
+                                <span>Ветреный день с активным выносом загрязнения из котловины.</span>
+                            </button>
+                            <button type="button" class="sim-preset-btn" data-preset="rush">
+                                <strong><i class="bi bi-car-front-fill"></i> Час пик</strong>
+                                <span>Вечерний трафик, тёплый фон и умеренный ветер.</span>
+                            </button>
+                            <button type="button" class="sim-preset-btn" data-preset="night">
+                                <strong><i class="bi bi-moon-stars-fill"></i> Ночной застой</strong>
+                                <span>Поздний час, слабое перемешивание и рост локальных накоплений.</span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <section class="sim-panel app-fade-in">
+                        <div class="sim-panel-head">
+                            <div>
+                                <h2>Управление сценарием</h2>
+                                <p>Любое изменение автоматически пересчитывает пространственное поле.</p>
+                            </div>
+                            <button type="button" id="btn-reset" class="btn btn-sm btn-outline-secondary">Сбросить</button>
+                        </div>
+
+                        <div class="sim-controls">
+                            <div class="sim-control">
+                                <div class="sim-control-head">
+                                    <label for="sim-hour">Время суток</label>
+                                    <span class="sim-control-value" id="val-hour">12:00</span>
+                                </div>
+                                <input type="range" class="form-range" id="sim-hour" min="0" max="23" step="1" value="12">
+                                <small>Модель учитывает смену трафика и суточный температурный ход.</small>
+                            </div>
+
+                            <div class="sim-control">
+                                <div class="sim-control-head">
+                                    <label for="sim-temp">Температура воздуха</label>
+                                    <span class="sim-control-value" id="val-temp">15 °C</span>
+                                </div>
+                                <input type="range" class="form-range" id="sim-temp" min="-25" max="40" step="1" value="15">
+                                <small>Низкие температуры усиливают отопительный сценарий, высокие улучшают конвекцию.</small>
+                            </div>
+
+                            <div class="sim-control">
+                                <div class="sim-control-head">
+                                    <label for="sim-wind">Скорость ветра</label>
+                                    <span class="sim-control-value" id="val-wind">2.0 м/с</span>
+                                </div>
+                                <input type="range" class="form-range" id="sim-wind" min="0" max="15" step="0.5" value="2">
+                                <small>Один из ключевых факторов вентиляции городской котловины.</small>
+                            </div>
+
+                            <div class="sim-control">
+                                <div class="sim-control-head">
+                                    <label for="sim-dir">Направление ветра</label>
+                                    <span class="sim-control-value" id="val-dir">180° · Ю</span>
+                                </div>
+                                <input type="range" class="form-range" id="sim-dir" min="0" max="360" step="10" value="180">
+                                <small>Меняет доминирующие связи переноса между узлами графа.</small>
+                            </div>
+
+                            <div class="sim-control">
+                                <div class="sim-control-head">
+                                    <label for="sim-hum">Влажность</label>
+                                    <span class="sim-control-value" id="val-hum">45 %</span>
+                                </div>
+                                <input type="range" class="form-range" id="sim-hum" min="10" max="100" step="5" value="45">
+                                <small>Высокая влажность в сочетании со штилем повышает риск инверсии.</small>
+                            </div>
+                        </div>
+
+                        <div class="sim-actions">
+                            <button type="button" id="btn-simulate" class="btn btn-dark fw-bold"><i class="bi bi-stars"></i> Рассчитать</button>
+                            <button type="button" id="btn-play" class="btn btn-outline-primary fw-bold"><i class="bi bi-play-fill"></i> Play 24h</button>
+                            <button type="button" id="btn-save" class="btn btn-outline-secondary fw-bold"><i class="bi bi-bookmark-plus"></i> Сохранить снимок</button>
+                            <button type="button" id="btn-restore" class="btn btn-outline-secondary fw-bold" disabled><i class="bi bi-arrow-counterclockwise"></i> Вернуть снимок</button>
+                        </div>
+                    </section>
+
+                    <section class="sim-panel app-fade-in">
+                        <div class="sim-panel-head">
+                            <div>
+                                <h2>Снимок сценария</h2>
+                                <p>Сохраняйте эталонный прогон и сравнивайте новые варианты с ним.</p>
+                            </div>
+                        </div>
+                        <div id="snapshot-empty" class="sim-compare-box sim-muted">
+                            Снимок ещё не сохранён. После расчёта нажмите «Сохранить снимок», чтобы фиксировать базовый сценарий и отслеживать изменения.
+                        </div>
+                        <div id="snapshot-card" class="sim-compare-box d-none">
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                <div>
+                                    <span class="sim-section-label">Сохранено</span>
+                                    <strong id="snapshot-time">--:--</strong>
+                                </div>
+                                <span id="snapshot-risk" class="sim-pill neutral">Нет данных</span>
+                            </div>
+                            <div class="sim-summary-grid mt-3 mb-3">
+                                <div class="sim-summary-card">
+                                    <span>Средний PM2.5</span>
+                                    <strong id="snapshot-avg">--</strong>
+                                </div>
+                                <div class="sim-summary-card">
+                                    <span>Hotspot</span>
+                                    <strong id="snapshot-hotspot">--</strong>
+                                </div>
+                            </div>
+                            <div id="snapshot-params" class="sim-chip-row"></div>
+                        </div>
+                    </section>
+
+                    <section class="sim-panel app-fade-in">
+                        <div class="sim-panel-head">
+                            <div>
+                                <h2>Драйверы модели</h2>
+                                <p>Прокси-объяснения показывают, какие факторы сильнее всего влияют на текущий сценарий.</p>
+                            </div>
+                        </div>
+                        <div id="insights-container" class="d-grid gap-2">
+                            <div class="insight-card">
+                                <div class="insight-head">
+                                    <span>Ожидание расчёта</span>
+                                    <span class="sim-pill neutral">STGCN</span>
+                                </div>
+                                <p>После первого запуска здесь появится объяснение сценария: стагнация, вентиляция, час пик или инверсионный режим.</p>
+                            </div>
+                        </div>
+                    </section>
+                </aside>
+            </div>
+
+            <div class="col-12 col-xl-8 col-xxl-9">
+                <div class="sim-kpis app-fade-in">
+                    <section class="sim-kpi">
+                        <div>
+                            <span class="sim-kpi-label">Средний PM2.5</span>
+                            <div class="sim-kpi-value" id="kpi-avg">--</div>
+                            <div class="sim-kpi-note" id="kpi-avg-note">Сценарий ещё не рассчитан.</div>
+                        </div>
+                    </section>
+                    <section class="sim-kpi">
+                        <div>
+                            <span class="sim-kpi-label">Глобальная дельта</span>
+                            <div class="sim-kpi-value" id="kpi-delta">--</div>
+                            <div class="sim-kpi-note" id="kpi-delta-note">Изменение относительно текущего городского фона.</div>
+                        </div>
+                    </section>
+                    <section class="sim-kpi">
+                        <div>
+                            <span class="sim-kpi-label">Критическая точка</span>
+                            <div class="sim-kpi-value" id="kpi-hotspot">--</div>
+                            <div class="sim-kpi-note" id="kpi-hotspot-note">Станция с максимальным ожидаемым PM2.5.</div>
+                        </div>
+                    </section>
+                    <section class="sim-kpi">
+                        <div>
+                            <span class="sim-kpi-label">Надёжность сценария</span>
+                            <div class="sim-kpi-value" id="kpi-confidence">--</div>
+                            <div class="sim-kpi-note" id="kpi-confidence-note">Оценка по близости входных условий к рабочему диапазону модели.</div>
+                        </div>
+                    </section>
+                </div>
+
+                <section class="sim-map-wrap app-fade-in">
+                    <div class="sim-map-toolbar">
+                        <div>
+                            <h2>Пространственная карта сценария</h2>
+                            <p id="scenario-summary">После расчёта здесь появится короткая интерпретация поля загрязнения по городу.</p>
+                            <div id="scenario-tags" class="sim-chip-row"></div>
+                        </div>
+
+                        <div class="sim-map-actions">
+                            <label class="sim-toggle">
+                                <input class="form-check-input mt-0" type="checkbox" id="mode-delta">
+                                <span>Показать дельту вместо абсолютного PM2.5</span>
+                            </label>
+                            <label class="sim-toggle">
+                                <input class="form-check-input mt-0" type="checkbox" id="toggle-edges" checked>
+                                <span>Показать ветровые связи</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="sim-map-stage">
+                        <div id="map"></div>
+
+                        <div class="sim-floating sim-floating-left">
+                            <div id="status-pill" class="sim-status-pill" data-tone="info">Подготовка карты и первого сценария...</div>
+                            <div class="sim-legend">
+                                <div class="sim-legend-title">Легенда</div>
+                                <div id="legend-content"></div>
+                            </div>
+                        </div>
+
+                        <div class="sim-floating sim-floating-right">
+                            <div class="sim-mini-card">
+                                <span class="sim-mini-label">Режим карты</span>
+                                <strong id="map-mode-label">Абсолютный PM2.5</strong>
+                            </div>
+                            <div class="sim-mini-card">
+                                <span class="sim-mini-label">Ветровые связи</span>
+                                <strong id="edge-count">0</strong>
+                            </div>
+                        </div>
+
+                        <div id="loading-state" class="sim-loading d-none">
+                            <div class="sim-loading-card">
+                                <div class="spinner-border text-primary mb-3" role="status"></div>
+                                <div class="fw-bold">STGCN пересчитывает поле загрязнения</div>
+                                <div class="small text-muted mt-1">Обновляем spatial graph, сценарные инсайты и карту переноса.</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="row g-4 mt-1">
+                    <div class="col-lg-7">
+                        <section class="sim-panel app-fade-in">
+                            <div class="sim-panel-head">
+                                <div>
+                                    <h3>Станции и hotspots</h3>
+                                    <p>Клик по карточке приближает станцию на карте и показывает локальный drill-down.</p>
+                                </div>
+                                <div class="btn-group btn-group-sm ranking-toggle" role="group">
+                                    <button type="button" class="btn btn-primary" data-sort="pm25">По PM2.5</button>
+                                    <button type="button" class="btn btn-outline-primary" data-sort="delta">По изменению</button>
+                                </div>
+                            </div>
+                            <div id="station-list" class="station-list"></div>
+                        </section>
+                    </div>
+
+                    <div class="col-lg-5">
+                        <section class="sim-panel app-fade-in">
+                            <div class="sim-panel-head">
+                                <div>
+                                    <h3>Сводка сценария</h3>
+                                    <p>Короткие выводы по самому важному: где риск выше и где воздух чище.</p>
+                                </div>
+                            </div>
+
+                            <div class="sim-summary-grid">
+                                <div class="sim-summary-card">
+                                    <span>Hotspot</span>
+                                    <strong id="summary-hotspot">--</strong>
+                                </div>
+                                <div class="sim-summary-card">
+                                    <span>Чистейшая точка</span>
+                                    <strong id="summary-cleanest">--</strong>
+                                </div>
+                                <div class="sim-summary-card">
+                                    <span>Станций с ухудшением</span>
+                                    <strong id="summary-worse">--</strong>
+                                </div>
+                                <div class="sim-summary-card">
+                                    <span>Станций с улучшением</span>
+                                    <strong id="summary-better">--</strong>
+                                </div>
+                            </div>
+
+                            <div id="scenario-compare" class="sim-compare-box sim-muted">
+                                Сохраните снимок сценария, чтобы здесь появилось сравнение между текущим и эталонным прогоном.
+                            </div>
+                        </section>
+
+                        <section class="sim-panel app-fade-in">
+                            <div class="sim-panel-head">
+                                <div>
+                                    <h3>Как читать модель</h3>
+                                    <p>Небольшая памятка, чтобы быстро интерпретировать карту и дельту.</p>
+                                </div>
+                            </div>
+
+                            <div class="sim-help-list">
+                                <div class="sim-help-box sim-help-item">
+                                    <strong>Абсолютный режим</strong>
+                                    Показывает ожидаемую концентрацию PM2.5 по станциям после применения выбранных погодных условий.
+                                </div>
+                                <div class="sim-help-box sim-help-item">
+                                    <strong>Режим дельты</strong>
+                                    Отображает, где сценарий усиливает загрязнение, а где помогает его рассеять относительно текущего фона.
+                                </div>
+                                <div class="sim-help-box sim-help-item">
+                                    <strong>Ветровые связи</strong>
+                                    Голубые стрелки показывают наиболее вероятные направления переноса между соседними узлами графа.
+                                </div>
+                                <div class="sim-help-box sim-help-item">
+                                    <strong>Снимок сценария</strong>
+                                    Полезен для сравнения утреннего и вечернего режима, а также для контраста между штилем и вентиляцией.
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const defaultScenario = {
+        hour: 12,
+        temp: 15,
+        wind: 2,
+        direction: 180,
+        humidity: 45
+    };
+
+    const presets = {
+        inversion: { hour: 8, temp: -12, wind: 0.5, direction: 40, humidity: 85 },
+        breeze: { hour: 14, temp: 22, wind: 6.0, direction: 180, humidity: 35 },
+        rush: { hour: 19, temp: 12, wind: 2.0, direction: 220, humidity: 55 },
+        night: { hour: 23, temp: 5, wind: 0.8, direction: 70, humidity: 72 }
+    };
+
+    const state = {
+        currentMode: 'absolute',
+        sortMode: 'pm25',
+        mapReady: false,
+        isPlaying: false,
+        playInterval: null,
+        lastResult: null,
+        savedSnapshot: null,
+        debounceTimer: null,
+        requestSeq: 0,
+        activePreset: null,
+        pendingController: null
+    };
+
+    const refs = {
+        hour: document.getElementById('sim-hour'),
+        temp: document.getElementById('sim-temp'),
+        wind: document.getElementById('sim-wind'),
+        direction: document.getElementById('sim-dir'),
+        humidity: document.getElementById('sim-hum'),
+        valHour: document.getElementById('val-hour'),
+        valTemp: document.getElementById('val-temp'),
+        valWind: document.getElementById('val-wind'),
+        valDir: document.getElementById('val-dir'),
+        valHum: document.getElementById('val-hum'),
+        runButton: document.getElementById('btn-simulate'),
+        playButton: document.getElementById('btn-play'),
+        saveButton: document.getElementById('btn-save'),
+        resetButton: document.getElementById('btn-reset'),
+        restoreButton: document.getElementById('btn-restore'),
+        toggleEdges: document.getElementById('toggle-edges'),
+        modeDelta: document.getElementById('mode-delta'),
+        loadingState: document.getElementById('loading-state'),
+        legend: document.getElementById('legend-content'),
+        status: document.getElementById('status-pill'),
+        scenarioTags: document.getElementById('scenario-tags'),
+        scenarioSummary: document.getElementById('scenario-summary'),
+        stationList: document.getElementById('station-list'),
+        insights: document.getElementById('insights-container'),
+        snapshotEmpty: document.getElementById('snapshot-empty'),
+        snapshotCard: document.getElementById('snapshot-card'),
+        snapshotTime: document.getElementById('snapshot-time'),
+        snapshotRisk: document.getElementById('snapshot-risk'),
+        snapshotAvg: document.getElementById('snapshot-avg'),
+        snapshotHotspot: document.getElementById('snapshot-hotspot'),
+        snapshotParams: document.getElementById('snapshot-params'),
+        mapModeLabel: document.getElementById('map-mode-label'),
+        edgeCount: document.getElementById('edge-count'),
+        kpiAvg: document.getElementById('kpi-avg'),
+        kpiAvgNote: document.getElementById('kpi-avg-note'),
+        kpiDelta: document.getElementById('kpi-delta'),
+        kpiDeltaNote: document.getElementById('kpi-delta-note'),
+        kpiHotspot: document.getElementById('kpi-hotspot'),
+        kpiHotspotNote: document.getElementById('kpi-hotspot-note'),
+        kpiConfidence: document.getElementById('kpi-confidence'),
+        kpiConfidenceNote: document.getElementById('kpi-confidence-note'),
+        summaryHotspot: document.getElementById('summary-hotspot'),
+        summaryCleanest: document.getElementById('summary-cleanest'),
+        summaryWorse: document.getElementById('summary-worse'),
+        summaryBetter: document.getElementById('summary-better'),
+        compareBox: document.getElementById('scenario-compare')
+    };
+
+    const presetButtons = Array.from(document.querySelectorAll('[data-preset]'));
+    const rankingButtons = Array.from(document.querySelectorAll('[data-sort]'));
+
+    const emptyCollection = () => ({ type: 'FeatureCollection', features: [] });
+
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: {
+            version: 8,
+            sources: {
+                'carto-dark': {
+                    type: 'raster',
+                    tiles: [
+                        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+                        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
+                    ],
+                    tileSize: 256
+                },
+                'terrain-source': {
+                    type: 'raster-dem',
+                    tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+                    encoding: 'terrarium',
+                    tileSize: 256
+                }
+            },
+            layers: [
+                { id: 'basemap', type: 'raster', source: 'carto-dark', minzoom: 0, maxzoom: 20 }
+            ]
+        },
+        center: [76.92, 43.18],
+        zoom: 11.15,
+        pitch: 62,
+        bearing: -15,
+        antialias: true
+    });
+
+    map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
+    map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+
+    function formatOne(value) {
+        return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1, minimumFractionDigits: 0 }).format(value);
+    }
+
+    function signed(value) {
+        const num = Number(value || 0);
+        return `${num > 0 ? '+' : ''}${formatOne(num)}`;
+    }
+
+    function formatHour(value) {
+        const hour = Number(value);
+        return `${String(hour).padStart(2, '0')}:00`;
+    }
+
+    function directionLabel(deg) {
+        const labels = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
+        return labels[Math.round(Number(deg) / 45) % 8];
+    }
+
+    function getPayload() {
+        return {
+            temp: parseFloat(refs.temp.value),
+            wind: parseFloat(refs.wind.value),
+            direction: parseFloat(refs.direction.value),
+            humidity: parseFloat(refs.humidity.value),
+            hour: parseInt(refs.hour.value, 10)
+        };
+    }
+
+    function getRiskBand(value) {
+        if (value <= 15) return { label: 'Низкий риск', tone: 'success', color: '#22c55e' };
+        if (value <= 35) return { label: 'Умеренный фон', tone: 'info', color: '#38bdf8' };
+        if (value <= 55) return { label: 'Неблагоприятно', tone: 'warning', color: '#f59e0b' };
+        return { label: 'Высокий риск', tone: 'danger', color: '#ef4444' };
+    }
+
+    function getDeltaBand(value) {
+        if (value <= -5) return { label: 'Улучшение', tone: 'success', color: '#10b981' };
+        if (value >= 5) return { label: 'Ухудшение', tone: 'danger', color: '#f43f5e' };
+        return { label: 'Стабильно', tone: 'neutral', color: '#94a3b8' };
+    }
+
+    function pointToPolygon(lat, lon, size = 0.0044) {
+        return [[
+            [lon - size, lat - size],
+            [lon + size, lat - size],
+            [lon + size, lat + size],
+            [lon - size, lat + size],
+            [lon - size, lat - size]
+        ]];
+    }
+
+    function escapeHtml(value) {
+        return String(value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
+    }
+
+    function updateControlReadouts() {
+        refs.valHour.textContent = formatHour(refs.hour.value);
+        refs.valTemp.textContent = `${refs.temp.value} °C`;
+        refs.valWind.textContent = `${Number(refs.wind.value).toFixed(1)} м/с`;
+        refs.valDir.textContent = `${refs.direction.value}° · ${directionLabel(refs.direction.value)}`;
+        refs.valHum.textContent = `${refs.humidity.value} %`;
+    }
+
+    function setStatus(text, tone = 'info') {
+        refs.status.dataset.tone = tone;
+        refs.status.textContent = text;
+    }
+
+    function setLoading(isLoading) {
+        refs.loadingState.classList.toggle('d-none', !isLoading);
+        refs.runButton.disabled = isLoading;
+        refs.saveButton.disabled = isLoading || !state.lastResult;
+    }
+
+    function updateLegend() {
+        if (state.currentMode === 'absolute') {
+            refs.mapModeLabel.textContent = 'Абсолютный PM2.5';
+            refs.legend.innerHTML = `
+                <div class="sim-legend-scale">
+                    <div class="sim-legend-item"><span class="sim-legend-swatch" style="background:#22c55e;"></span><span>До 15 мкг/м³ · низкий риск</span></div>
+                    <div class="sim-legend-item"><span class="sim-legend-swatch" style="background:#38bdf8;"></span><span>15–35 мкг/м³ · умеренный фон</span></div>
+                    <div class="sim-legend-item"><span class="sim-legend-swatch" style="background:#f59e0b;"></span><span>35–55 мкг/м³ · неблагоприятно</span></div>
+                    <div class="sim-legend-item"><span class="sim-legend-swatch" style="background:#ef4444;"></span><span>55+ мкг/м³ · высокий риск</span></div>
+                </div>
+            `;
+            return;
+        }
+
+        refs.mapModeLabel.textContent = 'Изменение к фону';
+        refs.legend.innerHTML = `
+            <div class="sim-legend-scale">
+                <div class="sim-legend-item"><span class="sim-legend-swatch" style="background:#10b981;"></span><span>Сильное улучшение</span></div>
+                <div class="sim-legend-item"><span class="sim-legend-swatch" style="background:#94a3b8;"></span><span>Почти без изменений</span></div>
+                <div class="sim-legend-item"><span class="sim-legend-swatch" style="background:#f43f5e;"></span><span>Сильное ухудшение</span></div>
+            </div>
+        `;
+    }
+
+    function highlightPreset(key) {
+        state.activePreset = key;
+        presetButtons.forEach((button) => {
+            button.classList.toggle('active', button.dataset.preset === key);
+        });
+    }
+
+    function clearPresetHighlight() {
+        state.activePreset = null;
+        presetButtons.forEach((button) => button.classList.remove('active'));
+    }
+
+    function setScenario(values, { schedule = true, presetKey = null } = {}) {
+        refs.hour.value = values.hour;
+        refs.temp.value = values.temp;
+        refs.wind.value = values.wind;
+        refs.direction.value = values.direction;
+        refs.humidity.value = values.humidity;
+        updateControlReadouts();
+        if (presetKey) {
+            highlightPreset(presetKey);
+        } else {
+            clearPresetHighlight();
+        }
+        if (schedule) {
+            scheduleSimulation(true);
+        }
+    }
+
+    function scheduleSimulation(immediate = false) {
+        if (!state.mapReady) return;
+        clearTimeout(state.debounceTimer);
+        state.debounceTimer = setTimeout(runSimulation, immediate ? 30 : 260);
+    }
+
+    function applyPreset(key) {
+        const preset = presets[key];
+        if (!preset) return;
+        setScenario(preset, { schedule: true, presetKey: key });
+    }
+
+    function resetScenario() {
+        setScenario(defaultScenario, { schedule: true, presetKey: null });
+    }
+
+    function togglePlayback() {
+        state.isPlaying = !state.isPlaying;
+        if (state.isPlaying) {
+            refs.playButton.innerHTML = '<i class="bi bi-pause-fill"></i> Pause';
+            refs.playButton.classList.remove('btn-outline-primary');
+            refs.playButton.classList.add('btn-primary');
+            state.playInterval = setInterval(() => {
+                const nextHour = (parseInt(refs.hour.value, 10) + 1) % 24;
+                refs.hour.value = nextHour;
+                updateControlReadouts();
+                clearPresetHighlight();
+                scheduleSimulation(true);
+            }, 1200);
+            return;
+        }
+
+        refs.playButton.innerHTML = '<i class="bi bi-play-fill"></i> Play 24h';
+        refs.playButton.classList.add('btn-outline-primary');
+        refs.playButton.classList.remove('btn-primary');
+        clearInterval(state.playInterval);
+        state.playInterval = null;
+    }
+
+    function normalizeTone(tone) {
+        return ['success', 'warning', 'danger', 'info'].includes(tone) ? tone : 'neutral';
+    }
+
+    function popupHtml(station) {
+        const band = state.currentMode === 'absolute' ? getRiskBand(station.sim_pm25) : getDeltaBand(station.delta);
+        return `
+            <div style="min-width: 210px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                    <div>
+                        <div style="font-size:1rem; font-weight:800;">${escapeHtml(station.name)}</div>
+                        <div style="font-size:0.8rem; color:#64748b;">Confidence: ${escapeHtml(station.confidence)}</div>
+                    </div>
+                    <span style="padding:0.25rem 0.5rem; border-radius:999px; font-size:0.72rem; font-weight:800; background:rgba(15,23,42,0.06); color:#0f172a;">${escapeHtml(band.label)}</span>
+                </div>
+                <div style="margin-top:0.85rem; display:grid; gap:0.42rem;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem;"><span style="color:#64748b;">Текущий фон</span><strong>${formatOne(station.base_pm25)} мкг/м³</strong></div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem;"><span style="color:#64748b;">Сценарий</span><strong>${formatOne(station.sim_pm25)} мкг/м³</strong></div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem;"><span style="color:#64748b;">Дельта</span><strong>${signed(station.delta)} мкг/м³</strong></div>
+                </div>
+            </div>
+        `;
+    }
+
+    function flyToStation(stationId) {
+        if (!state.lastResult) return;
+        const station = state.lastResult.data.find((item) => item.id === stationId);
+        if (!station) return;
+        map.flyTo({ center: [station.lon, station.lat], zoom: 12.8, pitch: 64, speed: 0.8 });
+        new maplibregl.Popup({ offset: 20 })
+            .setLngLat([station.lon, station.lat])
+            .setHTML(popupHtml(station))
+            .addTo(map);
+    }
+
+    function renderMap(result) {
+        const polygonFeatures = [];
+        const pointFeatures = [];
+
+        result.data.forEach((station) => {
+            const band = state.currentMode === 'absolute' ? getRiskBand(station.sim_pm25) : getDeltaBand(station.delta);
+            const heightVal = state.currentMode === 'absolute'
+                ? Math.max(120, station.sim_pm25 * 24)
+                : Math.max(120, Math.abs(station.delta) * 42);
+            const markerScale = state.currentMode === 'absolute'
+                ? Math.max(4, station.sim_pm25 / 7)
+                : Math.max(4, Math.abs(station.delta) * 1.4);
+
+            polygonFeatures.push({
+                type: 'Feature',
+                properties: {
+                    id: station.id,
+                    name: station.name,
+                    base_pm25: station.base_pm25,
+                    sim_pm25: station.sim_pm25,
+                    delta: station.delta,
+                    confidence: station.confidence,
+                    color: band.color,
+                    height_val: heightVal
+                },
+                geometry: {
+                    type: 'Polygon',
+                    coordinates: pointToPolygon(station.lat, station.lon)
+                }
+            });
+
+            pointFeatures.push({
+                type: 'Feature',
+                properties: {
+                    id: station.id,
+                    name: station.name,
+                    base_pm25: station.base_pm25,
+                    sim_pm25: station.sim_pm25,
+                    delta: station.delta,
+                    confidence: station.confidence,
+                    color: band.color,
+                    marker_scale: markerScale,
+                    label_text: `${station.name}\n${state.currentMode === 'absolute' ? `${formatOne(station.sim_pm25)} мкг/м³` : `${signed(station.delta)} мкг/м³`}`
+                },
+                geometry: {
+                    type: 'Point',
+                    coordinates: [station.lon, station.lat]
+                }
+            });
+        });
+
+        const edgeFeatures = result.edges.map((edge) => {
+            const source = result.data[edge.source];
+            const target = result.data[edge.target];
+            return {
+                type: 'Feature',
+                properties: { weight: edge.weight },
+                geometry: {
+                    type: 'LineString',
+                    coordinates: [[source.lon, source.lat], [target.lon, target.lat]]
+                }
+            };
+        });
+
+        map.getSource('station-polygons').setData({ type: 'FeatureCollection', features: polygonFeatures });
+        map.getSource('station-points').setData({ type: 'FeatureCollection', features: pointFeatures });
+        map.getSource('edges-data').setData({ type: 'FeatureCollection', features: edgeFeatures });
+        refs.edgeCount.textContent = String(edgeFeatures.length);
+    }
+
+    function renderInsights(result) {
+        if (!result.insights || !result.insights.length) {
+            refs.insights.innerHTML = `
+                <div class="insight-card">
+                    <div class="insight-head">
+                        <span>Фоновые условия</span>
+                        <span class="sim-pill neutral">Без экстремумов</span>
+                    </div>
+                    <p>Сценарий близок к нейтральному режиму. Модель не выявила доминирующего драйвера, который резко усиливает или снижает PM2.5.</p>
+                </div>
+            `;
+            return;
+        }
+
+        refs.insights.innerHTML = result.insights.map((insight, index) => {
+            const tone = normalizeTone(insight.impact);
+            const width = Math.min(100, Math.max(12, Math.abs(insight.weight) * 9));
+            const color = tone === 'success'
+                ? '#22c55e'
+                : tone === 'warning'
+                    ? '#f59e0b'
+                    : tone === 'danger'
+                        ? '#ef4444'
+                        : '#60a5fa';
+            return `
+                <div class="insight-card">
+                    <div class="insight-head">
+                        <span>#${index + 1} ${escapeHtml(insight.factor)}</span>
+                        <span class="sim-pill ${tone}">${signed(insight.weight)} мкг/м³</span>
+                    </div>
+                    <div class="insight-bar"><span style="width:${width}%; background:${color};"></span></div>
+                    <p>${escapeHtml(insight.desc)}</p>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderSummary(result, payload) {
+        const summary = result.summary || {};
+        const risk = getRiskBand(summary.avg_sim_pm25 || 0);
+        const hotspot = summary.hotspot;
+        const cleanest = summary.cleanest;
+        const dominantInsight = result.insights && result.insights.length ? result.insights[0].factor : 'фоновое рассеивание';
+
+        refs.kpiAvg.textContent = summary.avg_sim_pm25 ? `${formatOne(summary.avg_sim_pm25)}` : '--';
+        refs.kpiAvgNote.textContent = `Базовый фон ${formatOne(summary.avg_base_pm25 || 0)} мкг/м³`;
+        refs.kpiDelta.textContent = summary.global_delta !== undefined ? signed(summary.global_delta) : '--';
+        refs.kpiDelta.style.color = summary.global_delta > 0 ? '#dc2626' : (summary.global_delta < 0 ? '#16a34a' : '');
+        refs.kpiDeltaNote.textContent = summary.global_delta > 0
+            ? 'Сценарий усиливает городской фон.'
+            : summary.global_delta < 0
+                ? 'Сценарий помогает рассеиванию.'
+                : 'Изменение близко к нулю.';
+        refs.kpiHotspot.textContent = hotspot ? hotspot.name : '--';
+        refs.kpiHotspotNote.textContent = hotspot ? `${formatOne(hotspot.sim_pm25)} мкг/м³ · Δ ${signed(hotspot.delta)}` : 'Нет данных по станции.';
+        refs.kpiConfidence.textContent = summary.confidence_score ? `${summary.confidence_score}%` : '--';
+        refs.kpiConfidence.style.color = summary.confidence_label === 'High' ? '#16a34a' : (summary.confidence_label === 'Medium' ? '#f59e0b' : '#dc2626');
+        refs.kpiConfidenceNote.textContent = summary.confidence_label
+            ? `${summary.confidence_label} confidence для заданных условий.`
+            : 'Нет оценки уверенности.';
+
+        refs.summaryHotspot.textContent = hotspot ? `${hotspot.name} · ${formatOne(hotspot.sim_pm25)} мкг/м³` : '--';
+        refs.summaryCleanest.textContent = cleanest ? `${cleanest.name} · ${formatOne(cleanest.sim_pm25)} мкг/м³` : '--';
+        refs.summaryWorse.textContent = String(summary.worsened_count ?? '--');
+        refs.summaryBetter.textContent = String(summary.improved_count ?? '--');
+
+        refs.scenarioSummary.textContent = `На ${formatHour(payload.hour)} модель ожидает ${risk.label.toLowerCase()} со средним PM2.5 ${formatOne(summary.avg_sim_pm25 || 0)} мкг/м³. Доминирующий фактор: ${dominantInsight.toLowerCase()}.`;
+        refs.scenarioTags.innerHTML = (summary.scenario_tags || []).map((tag) => `
+            <span class="sim-chip"><i class="bi bi-dot"></i>${escapeHtml(tag)}</span>
+        `).join('');
+
+        setStatus(`${risk.label} · средняя дельта ${signed(summary.global_delta || 0)} мкг/м³`, risk.tone);
+
+        renderComparison();
+    }
+
+    function renderStationList(result) {
+        let stations = [...result.data];
+        if (state.sortMode === 'delta') {
+            stations.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+        } else {
+            stations.sort((a, b) => b.sim_pm25 - a.sim_pm25);
+        }
+
+        refs.stationList.innerHTML = stations.slice(0, 8).map((station, index) => {
+            const absoluteBand = getRiskBand(station.sim_pm25);
+            const deltaBand = getDeltaBand(station.delta);
+            const band = state.currentMode === 'absolute' ? absoluteBand : deltaBand;
+            return `
+                <button type="button" class="station-card" data-station-id="${station.id}">
+                    <div class="station-card-top">
+                        <div>
+                            <small>#${index + 1} hotspot list</small>
+                            <strong>${escapeHtml(station.name)}</strong>
+                        </div>
+                        <span class="sim-pill ${normalizeTone(band.tone)}">${escapeHtml(band.label)}</span>
+                    </div>
+                    <div class="station-card-bottom">
+                        <div class="d-flex gap-3 flex-wrap">
+                            <small>Сценарий: <strong>${formatOne(station.sim_pm25)} мкг/м³</strong></small>
+                            <small>Δ: <strong>${signed(station.delta)} мкг/м³</strong></small>
+                        </div>
+                        <small>Confidence: ${escapeHtml(station.confidence)}</small>
+                    </div>
+                </button>
+            `;
+        }).join('');
+    }
+
+    function renderSnapshot() {
+        if (!state.savedSnapshot) {
+            refs.snapshotEmpty.classList.remove('d-none');
+            refs.snapshotCard.classList.add('d-none');
+            refs.restoreButton.disabled = true;
+            renderComparison();
+            return;
+        }
+
+        refs.snapshotEmpty.classList.add('d-none');
+        refs.snapshotCard.classList.remove('d-none');
+        refs.restoreButton.disabled = false;
+
+        const { payload, summary, savedAt } = state.savedSnapshot;
+        refs.snapshotTime.textContent = savedAt;
+        refs.snapshotRisk.className = `sim-pill ${normalizeTone(summary.risk_tone)}`;
+        refs.snapshotRisk.textContent = summary.risk_label;
+        refs.snapshotAvg.textContent = `${formatOne(summary.avg_sim_pm25)} мкг/м³`;
+        refs.snapshotHotspot.textContent = summary.hotspot ? `${summary.hotspot.name} · ${formatOne(summary.hotspot.sim_pm25)}` : '--';
+        refs.snapshotParams.innerHTML = [
+            `Время ${formatHour(payload.hour)}`,
+            `${payload.temp} °C`,
+            `${payload.wind.toFixed(1)} м/с`,
+            `${payload.direction}° ${directionLabel(payload.direction)}`,
+            `${payload.humidity} %`
+        ].map((item) => `<span class="sim-chip">${escapeHtml(item)}</span>`).join('');
+
+        renderComparison();
+    }
+
+    function renderComparison() {
+        if (!state.savedSnapshot || !state.lastResult) {
+            refs.compareBox.className = 'sim-compare-box sim-muted';
+            refs.compareBox.textContent = 'Сохраните снимок сценария, чтобы здесь появилось сравнение между текущим и эталонным прогоном.';
+            return;
+        }
+
+        const currentSummary = state.lastResult.summary;
+        const snapshotSummary = state.savedSnapshot.summary;
+        const avgDiff = currentSummary.avg_sim_pm25 - snapshotSummary.avg_sim_pm25;
+        const deltaTone = avgDiff > 0 ? 'danger' : avgDiff < 0 ? 'success' : 'neutral';
+
+        refs.compareBox.className = 'sim-compare-box';
+        refs.compareBox.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                <div>
+                    <span class="sim-section-label">Сравнение со снимком</span>
+                    <strong style="display:block; font-size:1rem; margin-top:0.3rem;">${signed(avgDiff)} мкг/м³ к среднему PM2.5</strong>
+                </div>
+                <span class="sim-pill ${deltaTone}">${avgDiff > 0 ? 'Сценарий хуже' : avgDiff < 0 ? 'Сценарий лучше' : 'Без изменений'}</span>
+            </div>
+            <div class="mt-3 sim-muted">
+                Было: ${formatOne(snapshotSummary.avg_sim_pm25)} мкг/м³, стало: ${formatOne(currentSummary.avg_sim_pm25)} мкг/м³. 
+                Hotspot сейчас: ${escapeHtml(currentSummary.hotspot ? currentSummary.hotspot.name : '—')}.
+            </div>
+        `;
+    }
+
+    function saveSnapshot() {
+        if (!state.lastResult) return;
+        state.savedSnapshot = {
+            payload: getPayload(),
+            summary: state.lastResult.summary,
+            savedAt: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+        };
+        renderSnapshot();
+    }
+
+    async function runSimulation() {
+        if (!state.mapReady) return;
+
+        const payload = getPayload();
+        const requestId = ++state.requestSeq;
+        if (state.pendingController) {
+            state.pendingController.abort();
+        }
+        const controller = new AbortController();
+        state.pendingController = controller;
+
+        setLoading(true);
+        setStatus('Сценарий пересчитывается...', 'info');
+
+        try {
+            const response = await fetch('/api/simulate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (requestId !== state.requestSeq) return;
+            if (result.status !== 'success') {
+                throw new Error(result.message || 'Simulation error');
+            }
+
+            state.lastResult = result;
+            renderMap(result);
+            renderSummary(result, payload);
+            renderInsights(result);
+            renderStationList(result);
+            renderSnapshot();
+            refs.saveButton.disabled = false;
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+            console.error(error);
+            setStatus('Не удалось обновить сценарий. Проверьте backend STGCN.', 'danger');
+            refs.scenarioSummary.textContent = 'Произошла ошибка при расчёте сценария. Карта и аналитика не были обновлены.';
+        } finally {
+            if (state.pendingController === controller) {
+                state.pendingController = null;
+                setLoading(false);
+            }
+        }
+    }
+
+    function bindUi() {
+        [refs.hour, refs.temp, refs.wind, refs.direction, refs.humidity].forEach((input) => {
+            input.addEventListener('input', () => {
+                updateControlReadouts();
+                clearPresetHighlight();
+                scheduleSimulation(false);
+            });
+        });
+
+        refs.runButton.addEventListener('click', () => runSimulation());
+        refs.saveButton.addEventListener('click', saveSnapshot);
+        refs.resetButton.addEventListener('click', resetScenario);
+        refs.restoreButton.addEventListener('click', () => {
+            if (!state.savedSnapshot) return;
+            setScenario(state.savedSnapshot.payload, { schedule: true, presetKey: null });
+        });
+        refs.playButton.addEventListener('click', togglePlayback);
+
+        refs.modeDelta.addEventListener('change', () => {
+            state.currentMode = refs.modeDelta.checked ? 'delta' : 'absolute';
+            updateLegend();
+            if (state.lastResult) {
+                renderMap(state.lastResult);
+                renderStationList(state.lastResult);
+                renderSummary(state.lastResult, getPayload());
+            }
+        });
+
+        refs.toggleEdges.addEventListener('change', () => {
+            const visibility = refs.toggleEdges.checked ? 'visible' : 'none';
+            if (!state.mapReady) return;
+            map.setLayoutProperty('gnn-edges-line', 'visibility', visibility);
+            map.setLayoutProperty('gnn-edges-arrows', 'visibility', visibility);
+        });
+
+        presetButtons.forEach((button) => {
+            button.addEventListener('click', () => applyPreset(button.dataset.preset));
+        });
+
+        rankingButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                state.sortMode = button.dataset.sort;
+                rankingButtons.forEach((btn) => {
+                    btn.classList.toggle('btn-primary', btn === button);
+                    btn.classList.toggle('btn-outline-primary', btn !== button);
+                });
+                if (state.lastResult) {
+                    renderStationList(state.lastResult);
+                }
+            });
+        });
+
+        refs.stationList.addEventListener('click', (event) => {
+            const card = event.target.closest('[data-station-id]');
+            if (!card) return;
+            flyToStation(Number(card.dataset.stationId));
+        });
+    }
+
+    map.on('load', () => {
+        state.mapReady = true;
+        map.setTerrain({ source: 'terrain-source', exaggeration: 1.45 });
+
+        map.addSource('station-polygons', { type: 'geojson', data: emptyCollection() });
+        map.addSource('station-points', { type: 'geojson', data: emptyCollection() });
+        map.addSource('edges-data', { type: 'geojson', data: emptyCollection() });
+
+        map.addLayer({
+            id: 'gnn-edges-line',
+            type: 'line',
+            source: 'edges-data',
+            paint: {
+                'line-color': '#60a5fa',
+                'line-width': ['interpolate', ['linear'], ['get', 'weight'], 0, 1, 10, 6],
+                'line-opacity': 0.4
+            }
+        });
+
+        map.addLayer({
+            id: 'gnn-edges-arrows',
+            type: 'symbol',
+            source: 'edges-data',
+            layout: {
+                'symbol-placement': 'line',
+                'symbol-spacing': 52,
+                'text-field': '▶',
+                'text-size': 15,
+                'text-keep-upright': false
+            },
+            paint: {
+                'text-color': '#bfdbfe',
+                'text-opacity': 0.85
+            }
+        });
+
+        map.addLayer({
+            id: 'station-extrusion',
+            type: 'fill-extrusion',
+            source: 'station-polygons',
+            paint: {
+                'fill-extrusion-color': ['get', 'color'],
+                'fill-extrusion-height': ['get', 'height_val'],
+                'fill-extrusion-opacity': 0.92
+            }
+        });
+
+        map.addLayer({
+            id: 'station-glow',
+            type: 'circle',
+            source: 'station-points',
+            paint: {
+                'circle-color': ['get', 'color'],
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 15, 13, 28],
+                'circle-opacity': 0.16,
+                'circle-blur': 0.85
+            }
+        });
+
+        map.addLayer({
+            id: 'station-dots',
+            type: 'circle',
+            source: 'station-points',
+            paint: {
+                'circle-color': ['get', 'color'],
+                'circle-radius': ['interpolate', ['linear'], ['get', 'marker_scale'], 4, 5, 15, 12],
+                'circle-stroke-color': '#f8fafc',
+                'circle-stroke-width': 1.2,
+                'circle-opacity': 0.96
+            }
+        });
+
+        map.addLayer({
+            id: 'station-labels',
+            type: 'symbol',
+            source: 'station-points',
+            minzoom: 11.8,
+            layout: {
+                'text-field': ['get', 'label_text'],
+                'text-size': 11,
+                'text-offset': [0, 1.35]
+            },
+            paint: {
+                'text-color': '#f8fafc',
+                'text-halo-color': 'rgba(15, 23, 42, 0.88)',
+                'text-halo-width': 1.1
+            }
+        });
+
+        ['station-extrusion', 'station-dots'].forEach((layerId) => {
+            map.on('click', layerId, (event) => {
+                const props = event.features[0].properties;
+                const station = {
+                    id: Number(props.id),
+                    name: props.name,
+                    base_pm25: Number(props.base_pm25),
+                    sim_pm25: Number(props.sim_pm25),
+                    delta: Number(props.delta),
+                    confidence: props.confidence
+                };
+                new maplibregl.Popup({ offset: 18 })
+                    .setLngLat(event.lngLat)
+                    .setHTML(popupHtml(station))
+                    .addTo(map);
+            });
+
+            map.on('mouseenter', layerId, () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            map.on('mouseleave', layerId, () => {
+                map.getCanvas().style.cursor = '';
+            });
+        });
+
+        updateControlReadouts();
+        updateLegend();
+        runSimulation();
+    });
+
+    bindUi();
+</script>
+{% endblock %}

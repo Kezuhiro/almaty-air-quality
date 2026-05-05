@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ru" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Almaty Air - Экологический мониторинг</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bs-body-font-family: 'Manrope', sans-serif;
+            --app-surface: rgba(255, 255, 255, 0.78);
+            --app-shadow: 0 18px 45px rgba(15, 23, 42, 0.1);
+            --app-glow: 0 0 36px rgba(37, 99, 235, 0.22);
+        }
+        [data-bs-theme="dark"] {
+            --app-surface: rgba(17, 24, 39, 0.78);
+            --app-shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+            --app-glow: 0 0 36px rgba(56, 189, 248, 0.16);
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at 8% -10%, rgba(37, 99, 235, 0.11), transparent 28rem),
+                radial-gradient(circle at 96% 4%, rgba(20, 184, 166, 0.09), transparent 24rem),
+                var(--bs-body-bg);
+        }
+        footer { margin-top: auto; }
+        .navbar { backdrop-filter: blur(18px); background-color: var(--app-surface) !important; }
+        .navbar-brand { font-weight: 800; letter-spacing: -0.02em; }
+        .navbar-brand i {
+            width: 2.1rem;
+            height: 2.1rem;
+            border-radius: 0.65rem;
+            display: inline-grid;
+            place-items: center;
+            color: #fff;
+            background: linear-gradient(135deg, #2563eb, #14b8a6);
+            box-shadow: var(--app-glow);
+        }
+        .text-orange { color: #fd7e14 !important; }
+        .bg-orange { background-color: #fd7e14 !important; color: #fff; }
+        .card, .btn, .badge, .nav-link { transition: all 0.2s ease; }
+        .btn { font-weight: 700; }
+        .navbar .nav-link { border-radius: 999px; padding-inline: 0.85rem !important; font-weight: 650; }
+        .navbar .nav-link:hover { background: var(--bs-tertiary-bg); }
+        .navbar .nav-link.active {
+            font-weight: 800;
+            color: #fff !important;
+            background: linear-gradient(135deg, #2563eb, #0ea5e9);
+            box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
+        }
+        #bd-theme {
+            border-radius: 999px;
+            width: 2.35rem;
+            height: 2.35rem;
+            display: inline-grid;
+            place-items: center;
+        }
+        .footer-note { color: var(--bs-secondary-color); }
+        .app-fade-in { animation: app-fade-in 0.55s ease both; }
+        @keyframes app-fade-in {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg border-bottom sticky-top shadow-sm">
+    <div class="container">
+        <a class="navbar-brand text-primary d-flex align-items-center gap-2" href="/">
+            <i class="bi bi-clouds-fill"></i> Almaty Air
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto align-items-center">
+                <li class="nav-item"><a class="nav-link {% if active_page == 'home' %}active{% endif %}" href="/" data-lang="nav_home">Главная</a></li>
+                <li class="nav-item"><a class="nav-link {% if active_page == 'forecast' %}active{% endif %}" href="/forecast" data-lang="nav_forecast">Прогноз</a></li>
+                <li class="nav-item"><a class="nav-link {% if active_page == 'simulation' %}active{% endif %}" href="/simulation" data-lang="nav_simulation">Симуляция</a></li>
+                <li class="nav-item"><a class="nav-link {% if active_page == 'history' %}active{% endif %}" href="/history" data-lang="nav_history">История</a></li>
+                <li class="nav-item"><a class="nav-link {% if active_page == 'about' %}active{% endif %}" href="/about" data-lang="nav_about">О проекте</a></li>
+                <li class="nav-item border-start mx-3 d-none d-lg-block" style="height: 24px;"></li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-globe"></i> <span id="current-lang-text">RU</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                        <li><button class="dropdown-item" onclick="changeLang('ru')">Русский</button></li>
+                        <li><button class="dropdown-item" onclick="changeLang('kk')">Қазақша</button></li>
+                        <li><button class="dropdown-item" onclick="changeLang('en')">English</button></li>
+                    </ul>
+                </li>
+                <li class="nav-item ms-2">
+                    <button class="btn btn-link nav-link" id="bd-theme" aria-label="Toggle theme"><i class="bi bi-moon-stars-fill"></i></button>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+{% block content %}{% endblock %}
+
+<footer class="border-top py-4 mt-5">
+    <div class="container text-center">
+        <p class="mb-0 small footer-note">© 2026 Almaty Air. <span data-lang="footer_text">Дипломный проект по мониторингу качества воздуха.</span></p>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const themeSwitcher = document.getElementById('bd-theme');
+    const themeIcon = themeSwitcher.querySelector('i');
+    const setTheme = (theme) => {
+        document.documentElement.setAttribute('data-bs-theme', theme);
+        localStorage.setItem('theme', theme);
+        themeIcon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+    };
+    setTheme(localStorage.getItem('theme') || 'light');
+    themeSwitcher.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-bs-theme');
+        setTheme(current === 'dark' ? 'light' : 'dark');
+    });
+
+    const translations = {
+        ru: {
+            nav_home: 'Главная', nav_forecast: 'Прогноз', nav_simulation: 'Симуляция', nav_history: 'История', nav_about: 'О проекте',
+            footer_text: 'Дипломный проект по мониторингу качества воздуха.',
+
+            fc_title: 'Прогноз на завтра', fc_subtitle: 'Анализ и метеоданных',
+            fc_ai_analysis: 'AI Аналитика', fc_ai_desc: 'Объяснение прогноза', fc_weather: 'Метеоусловия',
+            fc_temp: 'Температура', fc_wind: 'Ветер', fc_precip: 'Осадки',
+            rec_mask: 'Маска', rec_sport: 'Спорт', rec_vent: 'Окна', rec_kids: 'Дети',
+            tbl_title: 'Классификация AQI', tbl_h_range: 'AQI (PM2.5)', tbl_h_status: 'Статус', tbl_h_rec: 'Рекомендации',
+            st_1: 'Отлично', st_2: 'Нормально', st_3: 'Среднее', st_4: 'Вредно', st_5: 'ОПАСНО',
+            rec_1: 'Воздух чистый. Гуляйте смело!', rec_2: 'Приемлемое качество.', rec_3: 'Риск для аллергиков.', rec_4: 'Наденьте маску.', rec_5: 'Оставайтесь дома!',
+            txt_1: 'Чистый воздух, минимальные риски.', txt_2: 'Допустимое качество для большинства людей.', txt_3: 'Чувствительным группам нужна осторожность.', txt_4: 'Ограничьте активность на улице.', txt_5: 'Лучше оставаться в помещении.',
+            text_key_txt_1: 'Идеальные условия для прогулок.', text_key_txt_2: 'Качество воздуха приемлемое.', text_key_txt_3: 'Чувствительным людям стоит быть осторожнее.', text_key_txt_4: 'Высокая концентрация PM2.5. Берегите себя.', text_key_txt_5: 'Экстремальное загрязнение. Избегайте улицы.',
+            mask_key_none: 'Не нужна', mask_key_sensitive: 'Чувствительным людям', mask_key_recommended: 'Желательно', mask_key_required: 'Обязательно', mask_key_respirator: 'Респиратор FFP2',
+            sport_key_outdoor: 'Можно на улице', sport_key_allowed: 'Можно', sport_key_reduce: 'Сократите нагрузки', sport_key_indoor: 'Только в зале', sport_key_forbidden: 'Запрещено',
+            vent_key_air: 'Проветривайте', vent_key_allowed: 'Можно', vent_key_close_windows: 'Закройте окна', vent_key_close: 'Закрыть!',
+            kids_key_safe: 'Безопасно', kids_key_caution: 'Осторожно', kids_key_better_home: 'Лучше дома', kids_key_stay_home: 'Сидеть дома!',
+
+            home_badge: 'AI-платформа мониторинга воздуха',
+            hero_title: 'Интеллектуальный мониторинг качества воздуха в Алматы',
+            hero_desc: 'Сервис объединяет данные Open-Meteo, исторические показатели PM2.5 и ML-модель, чтобы заранее предупредить о рисках для здоровья.',
+            btn_learn: 'Открыть прогноз', home_cta_secondary: 'История данных', home_chip_live: 'Обновление каждый день', home_chip_city: 'Город: Алматы', home_chip_model: 'Модель: CatBoost',
+            home_panel_title: 'Сводка платформы', home_panel_subtitle: 'Ключевые ориентиры проекта для оперативного анализа качества воздуха.',
+            home_panel_row_1: 'Горизонт прогноза', home_panel_row_2: 'Источник метео', home_panel_row_3: 'Формат отчета', home_panel_row_3_value: 'Рекомендации',
+            features_title: 'Что делает систему полезной', features_subtitle: 'Прогноз не просто показывает число PM2.5, а объясняет риски и действия.',
+            card_ml: 'Machine Learning', card_ml_desc: 'Модель CatBoost обучена на многолетней истории загрязнений и погодных факторов.',
+            card_acc: 'Стабильная точность', card_acc_desc: 'Регулярная проверка ошибок и валидация позволяют держать прогноз надежным.',
+            card_act: 'Практичные советы', card_act_desc: 'Рекомендации по маске, спорту, проветриванию и активности детей на завтра.',            why_title: 'Почему это важно', why_text1: 'Высокий PM2.5 напрямую влияет на дыхание, самочувствие и продуктивность в течение дня.', why_text2: 'Ранний прогноз дает время скорректировать планы и снизить вред для здоровья.',
+            li_1: 'Планируйте прогулки и маршруты заранее', li_2: 'Выбирайте уровень защиты: маска или респиратор', li_3: 'Снижайте нагрузку в периоды высокого загрязнения',
+            arch_title: 'Как работает платформа', arch_desc: 'Полный путь: от сбора данных до готового прогноза на сайте.',
+            step_1: 'Сбор данных', step_1_d: 'Данные API по погоде и загрязнениям', step_2: 'Подготовка', step_2_d: 'Очистка и формирование признаков',
+            step_3: 'ML-прогноз', step_3_d: 'Расчет PM2.5 моделью CatBoost', step_4: 'Веб-отчет', step_4_d: 'Рекомендации и визуализация',
+            legend_title: 'Шкала AQI', tbl_aqi: 'AQI', tbl_lvl: 'Уровень', tbl_info: 'Описание',
+            home_cta_title: 'Получите прогноз на завтра за пару секунд', home_cta_desc: 'Система покажет ожидаемый PM2.5 и персональные рекомендации по активности.', home_cta_btn: 'Смотреть прогноз',
+
+            history_badge: 'Исторический мониторинг', history_title: 'Динамика загрязнения воздуха', history_subtitle: 'Сравнивайте показатели PM2.5 по дням, оценивайте тренд и находите периоды риска.',
+            history_cta: 'Открыть прогноз', history_error_title: 'История пока недоступна', history_error_btn: 'Перейти к прогнозу',
+            history_stat_days: 'Всего дней', history_stat_avg: 'Средний PM2.5', history_stat_max: 'Максимум PM2.5', history_stat_trend: 'Тренд периода', history_stat_trend_hint: 'Ожидание данных',
+            history_chart_title: 'График PM2.5', history_chart_desc: 'Переключайте диапазон для быстрого анализа последних периодов.',
+            history_range_7: '7 дней', history_range_14: '14 дней', history_range_30: '30 дней', history_range_all: 'Все',
+            history_table_title: 'Детальная таблица', history_search_placeholder: 'Поиск по дате или значению',
+            history_th_date: 'Дата', history_th_pm25: 'PM2.5', history_th_pm10: 'PM10', history_th_status: 'Статус',
+            history_no_results: 'Ничего не найдено по вашему запросу.', history_chart_label: 'PM2.5 (мкг/м³)',
+            history_trend_up: 'Рост загрязнения', history_trend_down: 'Снижение загрязнения', history_trend_flat: 'Без изменений',
+
+            about_badge: 'Команда проекта', about_title: 'Наша команда',
+            about_desc: 'Мы объединяем инженерный подход, анализ данных и разработку, чтобы сделать прогноз загрязнения воздуха понятным и полезным.',
+            about_mission_title: 'Наша миссия', about_mission_text: 'Создать доступный инструмент, который помогает жителям города принимать решения о здоровье на основе данных, а не интуиции.',
+            about_metric_1_label: 'Ключевые роли в команде', about_metric_2_label: 'Лет данных для анализа', about_metric_3_label: 'Фокус на практическую пользу',
+            team_title: 'Участники',
+            name_pm: 'Канат Бексултан', role_pm: 'Project Manager', desc_pm: 'Координация задач, архитектура проекта и контроль качества итогового решения.',
+            name_ds: 'Нуртай Нурсултан', role_ds: 'ML Engineer', desc_ds: 'Подготовка датасета, обучение CatBoost и улучшение точности прогноза PM2.5.',
+            name_dev: 'Марат Санжар', role_dev: 'Full-Stack Developer', desc_dev: 'Разработка веб-интерфейса, API-интеграция и внедрение UX/UI решений.',
+            values_title: 'Принципы работы',
+            value_1_title: 'Точность', value_1_desc: 'Проверяем модель на исторических данных и контролируем ошибку.',
+            value_2_title: 'Прозрачность', value_2_desc: 'Показываем, из каких данных формируется прогноз и рекомендации.',
+            value_3_title: 'Польза', value_3_desc: 'Фокус на действия, которые реально помогают снизить риски.',
+            rm_title: 'Roadmap',
+            rm_1_desc: 'MVP платформы', rm_1_date: 'Q1 2026', rm_1_text: 'Базовый web-интерфейс, модель CatBoost и автоматическое обновление прогноза.',
+            rm_2_desc: 'Real-time сбор данных', rm_2_date: 'Q3 2026', rm_2_text: 'Сокращение задержек и автоматический контроль качества источников.',
+            rm_3_desc: 'Mobile App', rm_3_date: '2027', rm_3_text: 'Push-уведомления о рисках и персональные сценарии активности.',
+            stack_title: 'Технологический стек',
+            about_cta_title: 'Посмотрите, как это работает на данных', about_cta_desc: 'Перейдите к истории и прогнозу, чтобы увидеть результат модели в реальных сценариях.',
+            about_cta_btn_primary: 'Прогноз', about_cta_btn_secondary: 'История'
+        },
+
+        kk: {
+            nav_home: 'Басты бет', nav_forecast: 'Болжам', nav_simulation: 'Симуляция', nav_history: 'Тарих', nav_about: 'Жоба туралы',
+            footer_text: 'Ауа сапасын мониторингтеу бойынша дипломдық жоба.',
+
+            fc_title: 'Ертеңге болжам', fc_subtitle: 'AI және метеодеректерге негізделген талдау',
+            fc_ai_analysis: 'AI талдауы', fc_ai_desc: 'Болжам түсіндірмесі', fc_weather: 'Ауа райы',
+            fc_temp: 'Температура', fc_wind: 'Жел', fc_precip: 'Жауын-шашын',
+            rec_mask: 'Маска', rec_sport: 'Спорт', rec_vent: 'Терезе', rec_kids: 'Балалар',
+            tbl_title: 'AQI жіктелуі', tbl_h_range: 'AQI (PM2.5)', tbl_h_status: 'Күйі', tbl_h_rec: 'Ұсыныс',
+            st_1: 'Тамаша', st_2: 'Қалыпты', st_3: 'Орташа', st_4: 'Зиянды', st_5: 'ҚАУІПТІ',
+            rec_1: 'Ауа таза. Еркін серуендеңіз!', rec_2: 'Қабылдауға болатын сапа.', rec_3: 'Сезімтал топтарға қауіп бар.', rec_4: 'Маска киіңіз.', rec_5: 'Үйде қалған дұрыс!',
+            txt_1: 'Таза ауа, тәуекел аз.', txt_2: 'Көпшілік үшін қолайлы сапа.', txt_3: 'Сезімтал адамдарға сақтық қажет.', txt_4: 'Сырттағы белсенділікті азайтыңыз.', txt_5: 'Үй ішінде болу ұсынылады.',
+            text_key_txt_1: 'Серуенге қолайлы жағдай.', text_key_txt_2: 'Ауа сапасы қалыпты.', text_key_txt_3: 'Сезімтал адамдар сақ болғаны дұрыс.', text_key_txt_4: 'PM2.5 жоғары. Өзіңізді қорғаңыз.', text_key_txt_5: 'Өте жоғары ластану. Сыртқа шықпаңыз.',
+            mask_key_none: 'Қажет емес', mask_key_sensitive: 'Сезімтал адамдарға', mask_key_recommended: 'Ұсынылады', mask_key_required: 'Міндетті', mask_key_respirator: 'FFP2 респираторы',
+            sport_key_outdoor: 'Сыртта болады', sport_key_allowed: 'Болады', sport_key_reduce: 'Жүктемені азайтыңыз', sport_key_indoor: 'Тек залда', sport_key_forbidden: 'Тыйым салынған',
+            vent_key_air: 'Желдетіңіз', vent_key_allowed: 'Болады', vent_key_close_windows: 'Терезені жабыңыз', vent_key_close: 'Жабыңыз!',
+            kids_key_safe: 'Қауіпсіз', kids_key_caution: 'Сақ болыңыз', kids_key_better_home: 'Үйде болған дұрыс', kids_key_stay_home: 'Үйде отыру',            home_badge: 'Ауа сапасын бақылау AI платформасы',
+            hero_title: 'Алматыдағы ауа сапасын интеллектуалды бақылау',
+            hero_desc: 'Сервис Open-Meteo деректерін, PM2.5 тарихын және ML моделін біріктіріп, денсаулық тәуекелдерін алдын ала көрсетеді.',
+            btn_learn: 'Болжамды ашу', home_cta_secondary: 'Деректер тарихы', home_chip_live: 'Күн сайын жаңарады', home_chip_city: 'Қала: Алматы', home_chip_model: 'Модель: CatBoost',
+            home_panel_title: 'Платформа шолуы', home_panel_subtitle: 'Ауа сапасын жедел талдауға арналған негізгі көрсеткіштер.',
+            home_panel_row_1: 'Болжам көкжиегі', home_panel_row_2: 'Метео көзі', home_panel_row_3: 'Есеп форматы', home_panel_row_3_value: 'Ұсыныстар',
+            features_title: 'Жүйенің негізгі артықшылықтары', features_subtitle: 'Болжам PM2.5 санын ғана емес, тәуекел мен әрекетті де түсіндіреді.',
+            card_ml: 'Machine Learning', card_ml_desc: 'CatBoost моделі көпжылдық ластану және ауа райы деректерінде оқытылған.',
+            card_acc: 'Тұрақты дәлдік', card_acc_desc: 'Қате талдауы мен тексеру болжам сенімділігін ұстап тұрады.',
+            card_act: 'Пайдалы кеңестер', card_act_desc: 'Ертеңге арналған маска, спорт, желдету және балалар белсенділігі бойынша ұсыныстар.',
+            why_title: 'Неліктен бұл маңызды', why_text1: 'PM2.5 жоғары болуы тыныс алуға, жағдайға және өнімділікке тікелей әсер етеді.', why_text2: 'Ерте болжам жоспарды түзетіп, денсаулыққа зиянды азайтуға көмектеседі.',
+            li_1: 'Серуен мен маршрутты алдын ала жоспарлаңыз', li_2: 'Қорғаныс деңгейін таңдаңыз: маска немесе респиратор', li_3: 'Ластану жоғары кезде жүктемені азайтыңыз',
+            arch_title: 'Платформа қалай жұмыс істейді', arch_desc: 'Деректер жинаудан сайттағы дайын болжамға дейінгі толық цикл.',
+            step_1: 'Деректер жинау', step_1_d: 'API арқылы ауа райы және ластану деректері',
+            step_2: 'Дайындау', step_2_d: 'Тазалау және белгілерді дайындау',
+            step_3: 'ML-болжам', step_3_d: 'CatBoost арқылы PM2.5 есебі',
+            step_4: 'Веб-есеп', step_4_d: 'Ұсыныстар мен визуализация',
+            legend_title: 'AQI шкаласы', tbl_aqi: 'AQI', tbl_lvl: 'Деңгей', tbl_info: 'Сипаттама',
+            home_cta_title: 'Ертеңге болжамды бірнеше секундта алыңыз', home_cta_desc: 'Жүйе күтілетін PM2.5 және жеке ұсыныстарды көрсетеді.', home_cta_btn: 'Болжамды көру',
+
+            history_badge: 'Тарихи мониторинг', history_title: 'Ауа ластануының динамикасы', history_subtitle: 'Күндер бойынша PM2.5 көрсеткіштерін салыстырып, трендті бағалаңыз.',
+            history_cta: 'Болжамға өту', history_error_title: 'Тарих әзірше қолжетімсіз', history_error_btn: 'Болжамға өту',
+            history_stat_days: 'Күн саны', history_stat_avg: 'Орташа PM2.5', history_stat_max: 'Ең жоғары PM2.5', history_stat_trend: 'Кезең тренді', history_stat_trend_hint: 'Деректер күтілуде',
+            history_chart_title: 'PM2.5 графигі', history_chart_desc: 'Соңғы кезеңдерді жылдам талдау үшін диапазонды ауыстырыңыз.',
+            history_range_7: '7 күн', history_range_14: '14 күн', history_range_30: '30 күн', history_range_all: 'Барлығы',
+            history_table_title: 'Толық кесте', history_search_placeholder: 'Күн немесе мән бойынша іздеу',
+            history_th_date: 'Күні', history_th_pm25: 'PM2.5', history_th_pm10: 'PM10', history_th_status: 'Күйі',
+            history_no_results: 'Сұрауыңыз бойынша ештеңе табылмады.', history_chart_label: 'PM2.5 (мкг/м³)',
+            history_trend_up: 'Ластану өсуде', history_trend_down: 'Ластану төмендеуде', history_trend_flat: 'Өзгеріс жоқ',
+
+            about_badge: 'Жоба командасы', about_title: 'Біздің команда',
+            about_desc: 'Біз инженерияны, деректер талдауын және әзірлеуді біріктіріп, ауа ластануы болжамын түсінікті етеміз.',
+            about_mission_title: 'Біздің миссия', about_mission_text: 'Қала тұрғындарына денсаулық бойынша шешім қабылдауға көмектесетін қолжетімді құрал жасау.',
+            about_metric_1_label: 'Командадағы негізгі рөлдер', about_metric_2_label: 'Талдауға арналған дерек жылдары', about_metric_3_label: 'Практикалық пайдаға фокус',
+            team_title: 'Қатысушылар',
+            name_pm: 'Қанат Бексұлтан', role_pm: 'Project Manager', desc_pm: 'Тапсырмаларды үйлестіру, архитектура және финалдық сапаны бақылау.',
+            name_ds: 'Нұртай Нұрсұлтан', role_ds: 'ML Engineer', desc_ds: 'Датасет дайындау, CatBoost оқыту және PM2.5 дәлдігін арттыру.',
+            name_dev: 'Марат Санжар', role_dev: 'Full-Stack Developer', desc_dev: 'Веб-интерфейс әзірлеу, API интеграция және UX/UI шешімдері.',
+            values_title: 'Жұмыс қағидалары',
+            value_1_title: 'Дәлдік', value_1_desc: 'Модельді тарихи деректермен тексеріп, қатені бақылаймыз.',
+            value_2_title: 'Ашықтық', value_2_desc: 'Болжам мен ұсыныс қандай деректерден жасалғанын көрсетеміз.',
+            value_3_title: 'Пайда', value_3_desc: 'Тәуекелді азайтатын нақты әрекеттерге бағытталамыз.',
+            rm_title: 'Roadmap',
+            rm_1_desc: 'MVP платформасы', rm_1_date: 'Q1 2026', rm_1_text: 'Негізгі web-интерфейс, CatBoost моделі және автоматты жаңарту.',
+            rm_2_desc: 'Real-time деректер жинау', rm_2_date: 'Q3 2026', rm_2_text: 'Кідірісті азайту және дерек көздерінің сапасын бақылау.',
+            rm_3_desc: 'Mobile App', rm_3_date: '2027', rm_3_text: 'Тәуекел туралы push-хабарлама және жеке сценарийлер.',
+            stack_title: 'Технологиялық стек',
+            about_cta_title: 'Нәтижені нақты деректерден көріңіз', about_cta_desc: 'Модель нәтижесін шынайы сценарийлерде көру үшін тарих пен болжамға өтіңіз.',
+            about_cta_btn_primary: 'Болжам', about_cta_btn_secondary: 'Тарих'
+        },
+
+        en: {
+            nav_home: 'Home', nav_forecast: 'Forecast', nav_simulation: 'Simulation', nav_history: 'History', nav_about: 'About',
+            footer_text: 'Diploma project for air quality monitoring.',
+
+            fc_title: 'Forecast for Tomorrow', fc_subtitle: 'Analysis based on AI and meteorological data',
+            fc_ai_analysis: 'AI Analysis', fc_ai_desc: 'Forecast explanation', fc_weather: 'Weather Conditions',
+            fc_temp: 'Temperature', fc_wind: 'Wind', fc_precip: 'Precipitation',
+            rec_mask: 'Mask', rec_sport: 'Sport', rec_vent: 'Windows', rec_kids: 'Kids',
+            tbl_title: 'AQI Classification', tbl_h_range: 'AQI (PM2.5)', tbl_h_status: 'Status', tbl_h_rec: 'Recommendation',
+            st_1: 'Excellent', st_2: 'Good', st_3: 'Moderate', st_4: 'Unhealthy', st_5: 'HAZARDOUS',
+            rec_1: 'Air is clean. Enjoy your day!', rec_2: 'Acceptable air quality.', rec_3: 'Risk for sensitive groups.', rec_4: 'Wear a mask.', rec_5: 'Better stay indoors.',
+            txt_1: 'Clean air, minimal risk.', txt_2: 'Acceptable quality for most people.', txt_3: 'Sensitive groups should be careful.', txt_4: 'Limit outdoor activity.', txt_5: 'Staying indoors is recommended.',
+            text_key_txt_1: 'Ideal conditions for outdoor activity.', text_key_txt_2: 'Air quality is acceptable.', text_key_txt_3: 'Sensitive people should be careful.', text_key_txt_4: 'High PM2.5 concentration. Take care.', text_key_txt_5: 'Extreme pollution. Avoid going outside.',
+            mask_key_none: 'Not needed', mask_key_sensitive: 'Sensitive groups only', mask_key_recommended: 'Recommended', mask_key_required: 'Required', mask_key_respirator: 'FFP2 respirator',
+            sport_key_outdoor: 'Outdoor allowed', sport_key_allowed: 'Allowed', sport_key_reduce: 'Reduce intensity', sport_key_indoor: 'Indoor only', sport_key_forbidden: 'Not allowed',
+            vent_key_air: 'Ventilate rooms', vent_key_allowed: 'Allowed', vent_key_close_windows: 'Close windows', vent_key_close: 'Keep closed',
+            kids_key_safe: 'Safe', kids_key_caution: 'Caution', kids_key_better_home: 'Better stay home', kids_key_stay_home: 'Stay indoors',            home_badge: 'AI Air Monitoring Platform',
+            hero_title: 'Intelligent Air Quality Monitoring in Almaty',
+            hero_desc: 'The platform combines Open-Meteo data, PM2.5 history, and an ML model to warn about health risks in advance.',
+            btn_learn: 'Open Forecast', home_cta_secondary: 'Data History', home_chip_live: 'Updated daily', home_chip_city: 'City: Almaty', home_chip_model: 'Model: CatBoost',
+            home_panel_title: 'Platform Snapshot', home_panel_subtitle: 'Core project indicators for quick air-quality analysis.',
+            home_panel_row_1: 'Forecast horizon', home_panel_row_2: 'Weather source', home_panel_row_3: 'Report format', home_panel_row_3_value: 'Recommendations',
+            features_title: 'Why this system is useful', features_subtitle: 'The forecast shows not only PM2.5 values but also risks and actions.',
+            card_ml: 'Machine Learning', card_ml_desc: 'CatBoost is trained on multi-year pollution and weather data.',
+            card_acc: 'Stable Accuracy', card_acc_desc: 'Regular error checks and validation keep the forecast reliable.',
+            card_act: 'Practical Advice', card_act_desc: 'Actionable guidance for masks, sports, ventilation, and kids activity.',
+            why_title: 'Why it matters', why_text1: 'High PM2.5 directly affects breathing, well-being, and daily productivity.', why_text2: 'Early forecasts help adjust plans and reduce health impact.',
+            li_1: 'Plan outdoor routes in advance', li_2: 'Choose proper protection: mask or respirator', li_3: 'Reduce workload during high pollution',
+            arch_title: 'How the platform works', arch_desc: 'A full pipeline from data collection to a ready web forecast.',
+            step_1: 'Data Collection', step_1_d: 'API weather and pollution data', step_2: 'Preparation', step_2_d: 'Cleaning and feature engineering',
+            step_3: 'ML Forecast', step_3_d: 'PM2.5 prediction with CatBoost', step_4: 'Web Report', step_4_d: 'Recommendations and visualization',
+            legend_title: 'AQI Scale', tbl_aqi: 'AQI', tbl_lvl: 'Level', tbl_info: 'Description',
+            home_cta_title: "Get tomorrow's forecast in seconds", home_cta_desc: 'The system provides expected PM2.5 and personalized activity guidance.', home_cta_btn: 'View Forecast',
+
+            history_badge: 'Historical Monitoring', history_title: 'Air Pollution Dynamics', history_subtitle: 'Compare daily PM2.5 values, evaluate trends, and detect risk periods.',
+            history_cta: 'Open Forecast', history_error_title: 'History is currently unavailable', history_error_btn: 'Go to Forecast',
+            history_stat_days: 'Total Days', history_stat_avg: 'Average PM2.5', history_stat_max: 'Max PM2.5', history_stat_trend: 'Period Trend', history_stat_trend_hint: 'Waiting for data',
+            history_chart_title: 'PM2.5 Chart', history_chart_desc: 'Switch range to quickly analyze recent periods.',
+            history_range_7: '7 days', history_range_14: '14 days', history_range_30: '30 days', history_range_all: 'All',
+            history_table_title: 'Detailed Table', history_search_placeholder: 'Search by date or value',
+            history_th_date: 'Date', history_th_pm25: 'PM2.5', history_th_pm10: 'PM10', history_th_status: 'Status',
+            history_no_results: 'No records match your query.', history_chart_label: 'PM2.5 (mcg/m³)',
+            history_trend_up: 'Pollution increasing', history_trend_down: 'Pollution decreasing', history_trend_flat: 'No change',
+
+            about_badge: 'Project Team', about_title: 'Our Team',
+            about_desc: 'We combine engineering, data science, and development to make air-quality forecasting practical and clear.',
+            about_mission_title: 'Our Mission', about_mission_text: 'Build an accessible tool that helps people make health-aware decisions based on data.',
+            about_metric_1_label: 'Core roles in the team', about_metric_2_label: 'Years of data analyzed', about_metric_3_label: 'Focus on practical value',
+            team_title: 'Members',
+            name_pm: 'Kanat Beksultan', role_pm: 'Project Manager', desc_pm: 'Task coordination, architecture planning, and delivery quality control.',
+            name_ds: 'Nurtay Nursultan', role_ds: 'ML Engineer', desc_ds: 'Dataset preparation, CatBoost training, and PM2.5 accuracy improvement.',
+            name_dev: 'Marat Sanzhar', role_dev: 'Full-Stack Developer', desc_dev: 'Web interface implementation, API integration, and UX/UI delivery.',
+            values_title: 'Work Principles',
+            value_1_title: 'Accuracy', value_1_desc: 'We validate the model on historical data and track error metrics.',
+            value_2_title: 'Transparency', value_2_desc: 'We show how forecast and recommendations are formed.',
+            value_3_title: 'Impact', value_3_desc: 'We focus on actions that genuinely reduce health risks.',
+            rm_title: 'Roadmap',
+            rm_1_desc: 'Platform MVP', rm_1_date: 'Q1 2026', rm_1_text: 'Core web interface, CatBoost model, and automated forecast updates.',
+            rm_2_desc: 'Real-time Data Ingestion', rm_2_date: 'Q3 2026', rm_2_text: 'Lower latency and automated source-quality monitoring.',
+            rm_3_desc: 'Mobile App', rm_3_date: '2027', rm_3_text: 'Risk push notifications and personalized activity scenarios.',
+            stack_title: 'Technology Stack',
+            about_cta_title: 'See the model on real data', about_cta_desc: 'Open history and forecast pages to explore real-world prediction scenarios.',
+            about_cta_btn_primary: 'Forecast', about_cta_btn_secondary: 'History'
+        }
+    };
+
+    const dynamicKeyAliases = {
+        status_key_: { 'Отлично': 'st_1', 'Нормально': 'st_2', 'Средне': 'st_3', 'Вредно': 'st_4', 'ОПАСНО': 'st_5' },
+        text_key_: {
+            'Воздух чистый, гуляйте смело!': 'text_key_txt_1',
+            'Качество воздуха приемлемое.': 'text_key_txt_2',
+            'Чувствительным группам может быть некомфортно.': 'text_key_txt_3',
+            'Высокий уровень загрязнения!': 'text_key_txt_4',
+            'Экстремальное загрязнение! Избегайте улицы.': 'text_key_txt_5'
+        },
+        mask_key_: {
+            'Не нужна': 'mask_key_none', 'Чувствительным людям': 'mask_key_sensitive', 'Желательно': 'mask_key_recommended',
+            'Обязательно': 'mask_key_required', 'Респиратор FFP2': 'mask_key_respirator'
+        },
+        sport_key_: {
+            'Можно на улице': 'sport_key_outdoor', 'Можно': 'sport_key_allowed', 'Сократите нагрузки': 'sport_key_reduce',
+            'Только в зале': 'sport_key_indoor', 'Запрещено': 'sport_key_forbidden'
+        },
+        vent_key_: {
+            'Проветривайте': 'vent_key_air', 'Можно': 'vent_key_allowed', 'Закройте окна': 'vent_key_close_windows', 'Закрыть!': 'vent_key_close'
+        },
+        kids_key_: {
+            'Безопасно': 'kids_key_safe', 'Осторожно': 'kids_key_caution', 'Лучше дома': 'kids_key_better_home', 'Сидеть дома!': 'kids_key_stay_home'
+        }
+    };
+
+    const resolveTranslationKey = (rawKey, dict) => {
+        if (dict[rawKey]) return rawKey;
+        for (const prefix in dynamicKeyAliases) {
+            if (rawKey.startsWith(prefix)) {
+                const suffix = rawKey.slice(prefix.length);
+                const alias = dynamicKeyAliases[prefix][suffix];
+                if (alias && dict[alias]) return alias;
+            }
+        }
+        return rawKey;
+    };
+
+    function changeLang(lang) {
+        const dict = translations[lang] || translations.ru;
+        localStorage.setItem('lang', lang);
+        document.getElementById('current-lang-text').innerText = lang.toUpperCase();
+
+        document.querySelectorAll('[data-lang]').forEach((el) => {
+            const rawKey = el.getAttribute('data-lang');
+            const key = resolveTranslationKey(rawKey, dict);
+            if (dict[key]) el.textContent = dict[key];
+        });
+
+        document.querySelectorAll('[data-lang-placeholder]').forEach((el) => {
+            const rawKey = el.getAttribute('data-lang-placeholder');
+            const key = resolveTranslationKey(rawKey, dict);
+            if (dict[key]) el.placeholder = dict[key];
+        });
+
+        document.dispatchEvent(new CustomEvent('langChanged', { detail: { lang, dict } }));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        changeLang(localStorage.getItem('lang') || 'ru');
+    });
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/static/service-worker.js')
+        .then(reg => console.log('SW Registered!', reg))
+        .catch(err => console.log('SW Registration failed:', err));
+    });
+  }
+
+  // Функция для подписки на Push (вызывай её, например, кнопкой "Включить уведомления")
+  async function subscribeToPush() {
+    const registration = await navigator.serviceWorker.ready;
+    
+    // Тебе понадобятся VAPID ключи (сгенерируем на шаге 4)
+    const publicVapidKey = 'ТВОЙ_PUBLIC_VAPID_KEY';
+    
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: publicVapidKey
+    });
+
+    // Отправляем подписку на бэкенд FastAPI
+    await fetch('/api/subscribe', {
+      method: 'POST',
+      body: JSON.stringify(subscription),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    alert('Уведомления включены!');
+  }
+</script>
+</body>
+</html>
