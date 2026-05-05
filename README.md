@@ -1,152 +1,110 @@
-# AI Air Quality Monitoring and Forecasting for Almaty
 
-Проект представляет собой веб-систему для мониторинга и прогнозирования качества воздуха в Алматы. Она объединяет данные о загрязнении и погоде, чтобы показывать текущую ситуацию по PM2.5 и строить два типа прогноза:
+# AI-Driven Air Quality Monitoring and Forecasting for Almaty
 
-- краткосрочный пространственный прогноз по городу через STGCN;
-- суточный прогноз среднего уровня PM2.5 через CatBoost.
+This project is a comprehensive web-based system designed to monitor and predict air quality in Almaty. By combining real-time pollution metrics with meteorological data, the platform reports the current PM2.5 situation and generates two distinct types of forecasts:
 
-Идея проекта простая: не просто показать, что воздух сейчас плохой или хороший, а попытаться заранее оценить, куда сместится смог и каким будет фон по городу завтра.
+- A short-term spatial forecast across the city using a Spatial-Temporal Graph Convolutional Network (STGCN).
+- A daily average city-wide PM2.5 forecast using CatBoost.
 
-## Что умеет система
+The primary objective is not just to report current air quality, but to proactively estimate where smog will migrate and what the overall pollution baseline will be tomorrow.
 
-- показывает текущие значения PM2.5 и PM10;
-- строит прогноз PM2.5 на завтра для всего города;
-- моделирует распространение загрязнения по 24 опорным точкам Алматы;
-- восстанавливает недостающие значения датчиков, если часть сенсоров недоступна;
-- отображает результаты в веб-интерфейсе FastAPI + Jinja2;
-- поддерживает страницы прогноза, истории и сценарной симуляции.
+## Key Features
 
-## Как это работает по-человечески
+- Real-time display of current PM2.5 and PM10 levels.
+- Next-day PM2.5 forecasting for the entire city.
+- Spatial modeling of pollution distribution across 24 anchor stations in Almaty.
+- Real-time data imputation to seamlessly recover missing values if IoT sensors go offline.
+- Interactive web interface built with FastAPI and Jinja2.
+- Support for dedicated pages: forecast, historical data, scenario simulation, and an interactive map.
 
-Если объяснять без перегруза терминами, логика такая:
+## System Overview
 
-1. Приложение забирает свежие данные из внешних API.
-2. Если какой-то датчик "молчит", система не ломается, а пытается восстановить его значение по соседним станциям.
-3. Дальше данные отправляются в две разные модели:
-   одна отвечает на вопрос "что будет в среднем по городу завтра?",
-   другая отвечает на вопрос "как загрязнение перераспределится по районам в ближайшие часы?".
-4. После этого сервер собирает результат в обычную веб-страницу: цифры, подсказки, история, карта и сценарии.
+At a high level, the system operates through a straightforward data pipeline:
 
-То есть пользователь открывает страницу и видит не набор сырых таблиц, а уже понятный прогноз с контекстом.
+1. The application fetches fresh data from external APIs.
+2. If a specific sensor is unresponsive, the system gracefully recovers its value using data from neighboring stations.
+3. The processed data is fed into two distinct models:
+   - One calculates the city's average pollution level for the following day.
+   - The other calculates how the pollution will distribute across specific districts in the upcoming hours.
+4. The backend aggregates these predictions and renders a comprehensive, user-friendly web page featuring metrics, actionable recommendations, and historical context.
 
-## Архитектура проекта
+## Architecture
 
-Проект организован как FastAPI-приложение с сервисным слоем и отдельными артефактами моделей.
+The project follows a modular architecture, separating the FastAPI web layer from the service layer and model artifacts.
 
-### 1. Веб-слой
+### 1. Web Layer
+**Entry point:** `app/main.py`
 
-Точка входа: [app/main.py](</d:/Diplom/Almaty_Air_Quality — копия/app/main.py>)
+This module is responsible for:
+- FastAPI initialization.
+- Pre-loading machine learning models into memory at startup.
+- Managing routing (`/`, `/forecast`, `/history`, `/simulation`, `/map`).
+- Passing context variables to Jinja2 HTML templates.
 
-Здесь находятся:
+The web server acts purely as a coordinator; it does not train models or house heavy data-processing logic.
 
-- инициализация FastAPI;
-- загрузка моделей в память при старте приложения;
-- маршруты `/`, `/forecast`, `/history`, `/simulation`, `/map`;
-- передача данных в HTML-шаблоны через Jinja2.
+### 2. Services
+Located in `app/services/`:
 
-Главная идея этого файла: веб-сервер не обучает модели и не хранит в себе всю тяжелую логику. Он только координирует сервисы и отдает готовый результат пользователю.
+- `fetcher.py`: Retrieves data from Open-Meteo and OpenAQ.
+- `imputer.py`: Recovers missing values for the 24 anchor stations using nearest-neighbor logic (Haversine distance).
+- `catboost_service.py`: Engineers features and executes the daily forecast.
+- `stgcn_service.py`: Loads the graph neural network and executes the spatial forecast.
+- `data_manager.py`: Manages and updates local CSV datasets.
+- `history_service.py`: Prepares historical data for frontend visualization.
 
-### 2. Сервисы
+### 3. Data Storage
+Located in the `data/` directory.
+Contains historical tables for training, time-series matrices by station, and station coordinate mapping.
 
-Файлы:
+### 4. Models
+Located in the `models/` directory.
+Contains pre-trained artifacts:
+- `catboost_final.cbm`: The trained CatBoost model.
+- `stgcn_almaty.pth`: The STGCN weights.
+- `adj_matrix.npy`: The adjacency matrix defining spatial relationships between stations.
+- `pm25_scaler.pkl`: The scaler used for data normalization.
 
-- [app/services/fetcher.py](</d:/Diplom/Almaty_Air_Quality — копия/app/services/fetcher.py>)
-- [app/services/imputer.py](</d:/Diplom/Almaty_Air_Quality — копия/app/services/imputer.py>)
-- [app/services/catboost_service.py](</d:/Diplom/Almaty_Air_Quality — копия/app/services/catboost_service.py>)
-- [app/services/stgcn_service.py](</d:/Diplom/Almaty_Air_Quality — копия/app/services/stgcn_service.py>)
-- [app/services/data_manager.py](</d:/Diplom/Almaty_Air_Quality — копия/app/services/data_manager.py>)
-- [app/services/history_service.py](</d:/Diplom/Almaty_Air_Quality — копия/app/services/history_service.py>)
+## Machine Learning Models
 
-Роли сервисов:
+### CatBoost (City-wide Daily Forecast)
+Predicts the average PM2.5 level across Almaty for the next day.
+**Inputs:**
+- Current and lagged PM2.5/PM10 values.
+- Meteorological features.
+- Derived physical features (e.g., air stagnation flag, ventilation index, thermal inversion potential).
+- Calendar and temporal features.
 
-- `fetcher.py` получает данные из Open-Meteo и OpenAQ;
-- `imputer.py` восстанавливает пропущенные значения для якорных станций через соседние датчики;
-- `catboost_service.py` готовит признаки и делает суточный прогноз;
-- `stgcn_service.py` загружает графовую нейросеть и строит пространственный прогноз;
-- `data_manager.py` обновляет локальные CSV-датасеты;
-- `history_service.py` готовит исторические данные для отображения на странице.
+### STGCN (Spatial Forecast)
+Predicts spatial distribution across 24 anchor stations.
+**Inputs & Logic:**
+- Each station acts as a node in a graph.
+- Relationships (edges) between stations are defined by an adjacency matrix based on geographical distance.
+- The model captures both the physical neighborhood effects and temporal dynamics to output a localized PM2.5 forecast for each node.
 
-### 3. Данные
+## Spatial Imputer Mechanism
 
-Папка: [data](</d:/Diplom/Almaty_Air_Quality — копия/data>)
+IoT air quality sensors are notoriously unstable; devices frequently disconnect or return empty payloads. If the system required all 24 anchor stations to be online simultaneously, the forecasting pipeline would frequently break.
 
-Здесь лежат:
+To solve this, the `SpatialImputer`:
+- Identifies nearby active stations when an anchor point drops offline.
+- Incrementally expands its search radius.
+- Calculates a distance-weighted average based on the closest available "donor" sensors.
+- Falls back to the city-wide background average if no local donors are found.
 
-- исторические таблицы для обучения и показа истории;
-- матрицы временных рядов по станциям;
-- координаты станций.
+This ensures the graph neural network always receives a complete tensor, making the system highly resilient to hardware failures.
 
-Проще говоря, это локальная база проекта, на которой держатся история, фичи и часть логики подготовки данных.
+## Request Lifecycle
 
-### 4. Модели
+When a user navigates to the `/forecast` endpoint:
+1. FastAPI receives the HTTP request.
+2. `fetcher.py` pulls the latest weather and air quality data.
+3. `data_manager.py` updates local records if necessary.
+4. `CatBoostRunner` computes the next-day average.
+5. `STGCNRunner` prepares the graph input and computes the spatial forecast.
+6. Results are aggregated, packed into an HTML template, and served to the client.
 
-Папка: [models](</d:/Diplom/Almaty_Air_Quality — копия/models>)
-
-Содержит:
-
-- `models/catboost_daily/artifacts/catboost_final.cbm` — обученная модель CatBoost;
-- `models/stgcn_24h/artifacts/stgcn_almaty.pth` — веса STGCN;
-- `adj_matrix.npy` — матрица связей между станциями;
-- `pm25_scaler.pkl` — scaler для нормализации/обратного преобразования.
-
-Именно поэтому сервер стартует не "с нуля": он просто поднимает уже обученные артефакты и использует их для инференса.
-
-## Две модели, две задачи
-
-### CatBoost
-
-CatBoost нужен для прогноза среднего PM2.5 по городу на завтра.
-
-Он берет:
-
-- текущие и лаговые значения PM2.5/PM10;
-- погодные признаки;
-- производные физические признаки, например стагнацию воздуха, вентиляцию, потенциал инверсии;
-- календарные признаки.
-
-Результат этой модели используется там, где пользователю нужен простой ответ:
-"завтра в среднем по Алматы станет лучше или хуже?"
-
-### STGCN
-
-STGCN нужен для пространственного прогноза по 24 опорным станциям.
-
-Логика здесь такая:
-
-- каждая станция считается узлом графа;
-- связи между станциями задаются матрицей смежности;
-- модель учитывает и соседство станций, и временную динамику;
-- на выходе получается прогноз PM2.5 по каждому узлу.
-
-Если коротко: CatBoost отвечает за общий городской фон, а STGCN пытается понять географию смога внутри города.
-
-## Почему здесь нужен Spatial Imputer
-
-С реальными датчиками почти всегда есть проблема: часть устройств периодически пропадает, зависает или отдает пустые данные.
-
-Если бы система ждала, что все 24 станции всегда будут живы одновременно, прогноз регулярно ломался бы. Поэтому используется `SpatialImputer`:
-
-- ищет соседние станции рядом с пропавшей точкой;
-- расширяет радиус поиска постепенно;
-- берет взвешенное среднее по ближайшим доступным донорам;
-- если ничего не найдено, использует городской фон как запасной вариант.
-
-За счет этого система получается заметно устойчивее к "мертвым" сенсорам.
-
-## Путь запроса от пользователя до прогноза
-
-Когда пользователь открывает `/forecast`, происходит примерно следующее:
-
-1. FastAPI принимает запрос.
-2. `fetcher.py` получает свежие погодные и воздушные данные.
-3. `data_manager.py` при необходимости обновляет локальные датасеты.
-4. `CatBoostRunner` считает прогноз на завтра.
-5. `STGCNRunner` формирует графовый вход и считает прогноз по станциям.
-6. Результат упаковывается в HTML-шаблон и отображается в браузере.
-
-То есть backend здесь работает как диспетчер: он собирает данные, прогоняет их через нужные сервисы и возвращает уже осмысленный ответ.
-
-## Структура проекта
+## Project Structure
 
 ```text
 app/
@@ -164,64 +122,48 @@ app/
 data/
 models/
 requirements.txt
+Dockerfile
+docker-compose.yml
 README.md
 ```
 
-## Зависимости
+## Dependencies
 
-Основные библиотеки проекта:
+- **Web & API:** `fastapi`, `uvicorn`, `requests`, `httpx`
+- **Templates & Validation:** `jinja2`, `pydantic`
+- **Data Processing:** `numpy`, `pandas`, `scikit-learn`
+- **Machine Learning:** `catboost`, `torch`
+- **Mapping:** `folium`
 
-- `fastapi` — веб-сервер и API;
-- `uvicorn` — запуск ASGI-приложения;
-- `jinja2` — HTML-шаблоны;
-- `pydantic` — схемы запросов и валидация;
-- `numpy`, `pandas` — работа с данными;
-- `requests`, `httpx` — синхронные и асинхронные HTTP-запросы;
-- `scikit-learn` — геометрия и вспомогательная обработка;
-- `catboost` — суточная модель прогноза;
-- `torch` — графовая нейросеть STGCN;
-- `folium` — генерация карты/тепловой карты.
+## Installation and Setup
 
-## Установка и запуск
+**Recommended Python version:** `3.10` or `3.11`.
+*(Note: Newer Python versions may lack stable pre-compiled wheels for PyTorch and CatBoost).*
 
-Рекомендуемая версия Python: `3.10` или `3.11`.
+### Local Setup
 
-Это важный момент: в проекте используются `torch` и `catboost`, а для слишком новых версий Python готовые сборки бывают доступны не сразу.
-
-Установка:
-
+1. Install the required dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-Запуск:
-
+2. Run the application:
 ```bash
 cd app
 python main.py
 ```
 
-После запуска приложение обычно будет доступно по адресу:
+The application will be accessible at `http://127.0.0.1:8000`.
 
-```text
-http://127.0.0.1:8000
+### Docker Setup (Recommended)
+
+To run the system in an isolated container:
+```bash
+docker-compose up --build -d
 ```
 
-## Откуда берутся данные
+## Data Sources
 
-- OpenAQ — сеть датчиков и реальные значения по станциям;
-- Open-Meteo Weather API — погодные данные;
-- Open-Meteo Air Quality API — городской фон загрязнения и исторические ряды.
-
-## Что важно понимать про текущую реализацию
-
-- проект уже содержит обученные артефакты моделей, обучение не требуется для обычного запуска;
-- часть логики завязана на доступность внешних API;
-- для устойчивости в коде уже есть кэширование и fallback-механизмы;
-- в `OpenAQFetcher` API-ключ сейчас зашит прямо в коде, и для production-режима лучше вынести его в переменные окружения.
-
-## Короткий итог
-
-Это не просто сайт с графиками. По сути, проект собирает живые данные о погоде и загрязнении, аккуратно чинит пробелы в сенсорах, прогоняет информацию через две разные модели и превращает результат в понятный прогноз для человека.
-
-Одна модель смотрит на город "сверху" и говорит, каким будет общий фон завтра. Другая смотрит на город "по районам" и пытается понять, как именно смог перераспределится в пространстве.
+- **OpenAQ API:** Sensor network and real-time station-level data.
+- **Open-Meteo Weather API:** Meteorological forecasting.
+- **Open-Meteo Air Quality API:** Historical time-series and background city pollution levels.
