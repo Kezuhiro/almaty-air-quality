@@ -7,7 +7,7 @@
 {% set status = 'Green' if current_pm <= 35 else 'Yellow' if current_pm <= 75 else 'Red' %}
 {% set tone = 'good' if current_pm <= 35 else 'mid' if current_pm <= 75 else 'bad' %}
 
-<section class="home-page">
+<section class="home-page" id="homePage" data-current-pm="{{ current_pm }}" data-tomorrow-pm="{{ tomorrow_pm }}">
     <div class="home-hero py-5">
         <div class="hero-glow hero-glow-one"></div>
         <div class="hero-glow hero-glow-two"></div>
@@ -231,6 +231,115 @@
                 }
             }
         });
+    })();
+
+    (() => {
+        const root = document.getElementById('homePage');
+        if (!root) return;
+
+        const translate = (key, fallback = '') => typeof window.t === 'function' ? window.t(key, fallback) : fallback;
+        const interpolate = (template, values) => typeof window.interpolateText === 'function'
+            ? window.interpolateText(template, values)
+            : template;
+
+        const statusLabel = (pm) => {
+            if (pm <= 35) return translate('status_green', 'Good');
+            if (pm <= 75) return translate('status_yellow', 'Moderate');
+            return translate('status_red', 'Hazardous');
+        };
+
+        const applyHomeCopy = () => {
+            const currentPm = Number(root.dataset.currentPm || 0);
+            const tomorrowPm = Number(root.dataset.tomorrowPm || 0);
+            const diff = tomorrowPm - currentPm;
+
+            const textMap = [
+                ['.hero-badge', 'home2_badge'],
+                ['.hero-title', 'home2_title'],
+                ['.hero-subtitle', 'home2_desc'],
+                ['.d-flex.flex-wrap.gap-3.mb-4 a[href="/forecast"]', 'home2_btn_forecast'],
+                ['.d-flex.flex-wrap.gap-3.mb-4 a[href="/about"]', 'home2_btn_about'],
+                ['.chip:nth-child(1)', 'home2_chip_live'],
+                ['.chip:nth-child(2)', 'home2_chip_city'],
+                ['.chip:nth-child(3)', 'home2_chip_models'],
+                ['.panel-label', 'home2_panel_label'],
+                ['.hero-panel h5', 'home2_panel_title'],
+                ['.panel-grid div:nth-child(1) small', 'home2_panel_temp'],
+                ['.panel-grid div:nth-child(2) small', 'home2_panel_wind'],
+                ['.panel-grid div:nth-child(3) small', 'home2_panel_updated'],
+                ['.live-card .card-kicker', 'home2_live_now'],
+                ['.compare-card .card-kicker', 'home2_compare_title'],
+                ['.compare-row div:first-child small', 'home2_compare_now'],
+                ['.compare-row div:last-child small', 'home2_compare_forecast'],
+                ['.trend-card .card-kicker', 'home2_trend_kicker'],
+                ['.trend-card h5', 'home2_trend_title'],
+                ['.section-head h2', 'home2_features_title'],
+                ['.section-head p', 'home2_features_desc'],
+                ['.feature-card:nth-of-type(1) h4', 'home2_feature_ml_title'],
+                ['.feature-card:nth-of-type(1) p', 'home2_feature_ml_desc'],
+                ['.feature-card:nth-of-type(2) h4', 'home2_feature_spatial_title'],
+                ['.feature-card:nth-of-type(2) p', 'home2_feature_spatial_desc'],
+                ['.feature-card:nth-of-type(3) h4', 'home2_feature_actions_title'],
+                ['.feature-card:nth-of-type(3) p', 'home2_feature_actions_desc'],
+                ['.why-card .card-kicker', 'home2_why_kicker'],
+                ['.why-card h3', 'home2_why_title'],
+                ['.why-card p:nth-of-type(1)', 'home2_why_desc1'],
+                ['.why-card p:nth-of-type(2)', 'home2_why_desc2'],
+                ['.benefits li:nth-child(1) span', 'home2_benefit_1'],
+                ['.benefits li:nth-child(2) span', 'home2_benefit_2'],
+                ['.benefits li:nth-child(3) span', 'home2_benefit_3']
+            ];
+
+            textMap.forEach(([selector, key]) => {
+                const element = document.querySelector(selector);
+                if (element) element.textContent = translate(key, element.textContent);
+            });
+
+            const workflowTitle = document.querySelectorAll('.section-head')[1];
+            if (workflowTitle) {
+                const title = workflowTitle.querySelector('h2');
+                const desc = workflowTitle.querySelector('p');
+                if (title) title.textContent = translate('home2_pipeline_title', title.textContent);
+                if (desc) desc.textContent = translate('home2_pipeline_desc', desc.textContent);
+            }
+
+            const workflowKeys = [
+                ['.workflow-step:nth-child(1) h6', 'home2_step_1'],
+                ['.workflow-step:nth-child(1) p', 'home2_step_1_desc'],
+                ['.workflow-step:nth-child(2) h6', 'home2_step_2'],
+                ['.workflow-step:nth-child(2) p', 'home2_step_2_desc'],
+                ['.workflow-step:nth-child(3) h6', 'home2_step_3'],
+                ['.workflow-step:nth-child(3) p', 'home2_step_3_desc'],
+                ['.workflow-step:nth-child(4) h6', 'home2_step_4'],
+                ['.workflow-step:nth-child(4) p', 'home2_step_4_desc'],
+                ['.home-cta h3', 'home2_cta_title'],
+                ['.home-cta p', 'home2_cta_desc'],
+                ['.home-cta a', 'home2_cta_btn']
+            ];
+            workflowKeys.forEach(([selector, key]) => {
+                const element = document.querySelector(selector);
+                if (element) element.textContent = translate(key, element.textContent);
+            });
+
+            document.querySelectorAll('.status-pill').forEach((pill) => {
+                const pm = pill.closest('.hero-panel') || pill.closest('.live-card') ? currentPm : tomorrowPm;
+                pill.textContent = statusLabel(pm);
+            });
+
+            const compareText = document.querySelector('.compare-card p');
+            if (compareText) {
+                if (diff > 0) {
+                    compareText.textContent = interpolate(translate('home2_compare_worse', compareText.textContent), { value: Math.abs(diff).toFixed(1) });
+                } else if (diff < 0) {
+                    compareText.textContent = interpolate(translate('home2_compare_better', compareText.textContent), { value: Math.abs(diff).toFixed(1) });
+                } else {
+                    compareText.textContent = translate('home2_compare_same', compareText.textContent);
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', applyHomeCopy);
+        document.addEventListener('langChanged', applyHomeCopy);
     })();
 </script>
 

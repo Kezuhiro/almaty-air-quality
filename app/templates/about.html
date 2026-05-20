@@ -257,6 +257,153 @@
     </div>
 </section>
 
+<script>
+    (() => {
+        const packs = {
+            ru: {
+                heroKicker: 'Methodology / Air platform',
+                heroTitle: 'Прототип городской системы прогноза воздуха',
+                heroDesc: 'Проект объединяет live-датчики, метеоданные и ML-модели, чтобы объяснять загрязнение PM2.5 в Алматы и помогать принимать решения заранее.',
+                missionKicker: 'Миссия',
+                missionTitle: 'Сделать качество воздуха понятным до того, как смог станет очевидным',
+                missionDesc: 'Система превращает сложный набор временных рядов, погодных факторов и пространственных связей в простой интерфейс: текущее состояние, прогноз, карта и рекомендации.',
+                stats1: 'якорные станции графа STGCN',
+                stats2: 'признаков CatBoost для суточного прогноза',
+                stats3: 'модели в аналитическом центре',
+                pipelineKicker: 'Pipeline',
+                pipelineTitle: 'Как это работает',
+                pipelineDesc: 'Данные проходят путь от источников до понятного прогноза в FastAPI + Jinja2 интерфейсе.',
+                modelsKicker: 'Models',
+                modelsTitle: 'Модели платформы',
+                hourly: 'Hourly',
+                xgbDesc: 'Почасовой прогноз PM2.5 на ближайшие 24 часа на основе последних 72 часов истории и погодного прогноза.',
+                physicsKicker: 'Almaty physics',
+                physicsTitle: 'Почему это сложно',
+                physicsDesc: 'Алматы нельзя описать одним средним числом: география усиливает загрязнение.',
+                teamKicker: 'Team',
+                teamTitle: 'Команда проекта',
+                principles: 'Principles',
+                principlesTitle: 'Принципы работы',
+                roadmapTitle: 'План развития',
+                roadmap3: 'XGB Hourly и mobile',
+                stackTitle: 'Технологический стек',
+                ctaTitle: 'Посмотрите систему на реальном сценарии',
+                ctaDesc: 'Откройте прогноз, чтобы увидеть CatBoost, XGB Hourly и STGCN карту в одном интерфейсе.',
+                ctaForecast: 'Прогноз',
+                ctaHistory: 'История'
+            },
+            kk: {
+                heroKicker: 'Methodology / Air platform',
+                heroTitle: 'Қалалық ауа болжау жүйесінің прототипі',
+                heroDesc: 'Жоба live-сенсорларды, метеодеректерді және ML модельдерін біріктіріп, Алматыдағы PM2.5 ластануын түсіндіреді және шешім қабылдауға көмектеседі.',
+                missionKicker: 'Миссия',
+                missionTitle: 'Ауа сапасын смог айқын болмай тұрып түсінікті ету',
+                missionDesc: 'Жүйе уақыттық қатарлар, ауа райы факторлары мен кеңістіктік байланыстарды қарапайым интерфейске айналдырады: ағымдағы жағдай, болжам, карта және ұсыныстар.',
+                stats1: 'STGCN графының тірек станциясы',
+                stats2: 'тәуліктік CatBoost белгілері',
+                stats3: 'аналитикалық орталықтағы модель',
+                pipelineKicker: 'Pipeline',
+                pipelineTitle: 'Бұл қалай жұмыс істейді',
+                pipelineDesc: 'Деректер FastAPI + Jinja2 интерфейсіндегі түсінікті болжамға дейін толық жолдан өтеді.',
+                modelsKicker: 'Models',
+                modelsTitle: 'Платформа модельдері',
+                hourly: 'Hourly',
+                xgbDesc: 'Соңғы 72 сағат тарихы мен ауа райы болжамына сүйенген жақын 24 сағаттық PM2.5 болжамы.',
+                physicsKicker: 'Almaty physics',
+                physicsTitle: 'Неліктен бұл күрделі',
+                physicsDesc: 'Алматыны бір орташа санмен сипаттау мүмкін емес: география ластануды күшейтеді.',
+                teamKicker: 'Team',
+                teamTitle: 'Жоба командасы',
+                principles: 'Principles',
+                principlesTitle: 'Жұмыс қағидалары',
+                roadmapTitle: 'Даму жоспары',
+                roadmap3: 'XGB Hourly және mobile',
+                stackTitle: 'Технологиялық стек',
+                ctaTitle: 'Жүйені нақты сценарийде көріңіз',
+                ctaDesc: 'Бір интерфейсте CatBoost, XGB Hourly және STGCN картасын көру үшін болжамды ашыңыз.',
+                ctaForecast: 'Болжам',
+                ctaHistory: 'Тарих'
+            },
+            en: {
+                heroKicker: 'Methodology / Air platform',
+                heroTitle: 'Prototype of an urban air forecasting system',
+                heroDesc: 'The project combines live sensors, weather data, and ML models to explain PM2.5 pollution in Almaty and support earlier decisions.',
+                missionKicker: 'Mission',
+                missionTitle: 'Make air quality understandable before smog becomes visible',
+                missionDesc: 'The system converts time series, weather factors, and spatial links into a simple interface: current state, forecast, map, and recommendations.',
+                stats1: 'anchor stations in the STGCN graph',
+                stats2: 'CatBoost features for the daily forecast',
+                stats3: 'models in the analytics center',
+                pipelineKicker: 'Pipeline',
+                pipelineTitle: 'How it works',
+                pipelineDesc: 'Data moves from sources to an understandable forecast inside a FastAPI + Jinja2 interface.',
+                modelsKicker: 'Models',
+                modelsTitle: 'Platform models',
+                hourly: 'Hourly',
+                xgbDesc: '24-hour PM2.5 forecast based on the latest 72 hours of history and the weather forecast.',
+                physicsKicker: 'Almaty physics',
+                physicsTitle: 'Why it is hard',
+                physicsDesc: 'Almaty cannot be described by one average number: geography amplifies pollution.',
+                teamKicker: 'Team',
+                teamTitle: 'Project team',
+                principles: 'Principles',
+                principlesTitle: 'How we work',
+                roadmapTitle: 'Roadmap',
+                roadmap3: 'XGB Hourly and mobile',
+                stackTitle: 'Technology stack',
+                ctaTitle: 'See the system in a real scenario',
+                ctaDesc: 'Open the forecast to view CatBoost, XGB Hourly, and the STGCN map in one interface.',
+                ctaForecast: 'Forecast',
+                ctaHistory: 'History'
+            }
+        };
+
+        const applyAboutCopy = () => {
+            const lang = typeof window.getLang === 'function' ? window.getLang() : 'ru';
+            const copy = packs[lang] || packs.ru;
+            const setText = (selector, value) => {
+                const el = document.querySelector(selector);
+                if (el) el.textContent = value;
+            };
+
+            setText('.about-hero .about-kicker', copy.heroKicker);
+            setText('.about-hero h1', copy.heroTitle);
+            setText('.about-hero .lead', copy.heroDesc);
+            setText('.mission-card .about-kicker', copy.missionKicker);
+            setText('.mission-card h3', copy.missionTitle);
+            setText('.mission-card p', copy.missionDesc);
+            setText('.stats-card .about-stat:nth-child(1) .label', copy.stats1);
+            setText('.stats-card .about-stat:nth-child(2) .label', copy.stats2);
+            setText('.stats-card .about-stat:nth-child(3) .label', copy.stats3);
+            setText('.section-head:nth-of-type(1) .about-kicker', copy.pipelineKicker);
+            setText('.section-head:nth-of-type(1) h2', copy.pipelineTitle);
+            setText('.section-head:nth-of-type(1) p', copy.pipelineDesc);
+            setText('.section-head:nth-of-type(2) .about-kicker', copy.modelsKicker);
+            setText('.section-head:nth-of-type(2) h2', copy.modelsTitle);
+            setText('.model-card:nth-child(3) .model-top span', copy.hourly);
+            setText('.model-card:nth-child(3) h4', 'XGB Hourly');
+            setText('.model-card:nth-child(3) p', copy.xgbDesc);
+            setText('.section-head:nth-of-type(3) .about-kicker', copy.physicsKicker);
+            setText('.section-head:nth-of-type(3) h2', copy.physicsTitle);
+            setText('.section-head:nth-of-type(3) p', copy.physicsDesc);
+            setText('.d-flex.align-items-center.justify-content-between.mb-3 .about-kicker', copy.teamKicker);
+            setText('.d-flex.align-items-center.justify-content-between.mb-3 h3', copy.teamTitle);
+            setText('.values-card .about-kicker', copy.principles);
+            setText('.values-card h3', copy.principlesTitle);
+            setText('.roadmap-card h3', copy.roadmapTitle);
+            setText('.roadmap-item:nth-child(3) h6', copy.roadmap3);
+            setText('.tech-card h4', copy.stackTitle);
+            setText('.about-cta h3', copy.ctaTitle);
+            setText('.about-cta p', copy.ctaDesc);
+            setText('.about-cta a[href="/forecast"]', copy.ctaForecast);
+            setText('.about-cta a[href="/history"]', copy.ctaHistory);
+        };
+
+        document.addEventListener('DOMContentLoaded', applyAboutCopy);
+        document.addEventListener('langChanged', applyAboutCopy);
+    })();
+</script>
+
 <style>
     .about-page { overflow: hidden; }
 

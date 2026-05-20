@@ -3,7 +3,14 @@
 {% block content %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-<section class="forecast-page py-4 py-lg-5">
+<section class="forecast-page py-4 py-lg-5" id="forecastPage"
+    {% if not error %}
+    data-current-pm="{{ current_pm }}"
+    data-tomorrow-pm="{{ tomorrow_pm }}"
+    data-yesterday-pm="{{ yesterday_pm }}"
+    data-date="{{ data.date }}"
+    data-updated-at="{{ data.updated_at|default('сейчас') }}"
+    {% endif %}>
     <div class="container">
         {% if error %}
             <div class="app-card forecast-error text-center p-4 p-lg-5">
@@ -27,7 +34,7 @@
                 <div>
                     <span class="eyebrow">Cистема PM2.5 для Алматы</span>
                     <h1 class="mb-2">Прогноз качества воздуха</h1>
-                    <p class="text-muted mb-0">CatBoost, Baseline и STGCN в одном рабочем дашборде.</p>
+                    <p class="text-muted mb-0">CatBoost, XGB Hourly и STGCN в одном рабочем дашборде.</p>
                 </div>
                 <div class="head-meta">
                     <span><i class="bi bi-clock"></i> Обновлено: {{ data.updated_at|default('сейчас') }}</span>
@@ -84,8 +91,8 @@
                 <button class="model-tab active" data-tab="catboost" type="button">
                     <i class="bi bi-calendar2-check"></i> CatBoost <span>Завтра</span>
                 </button>
-                <button class="model-tab" data-tab="baseline" type="button">
-                    <i class="bi bi-graph-up-arrow"></i> Baseline <span>24ч</span>
+                <button class="model-tab" data-tab="xgb" type="button">
+                    <i class="bi bi-graph-up-arrow"></i> XGB Hourly <span>24ч</span>
                 </button>
                 <button class="model-tab" data-tab="stgcn" type="button">
                     <i class="bi bi-map"></i> STGCN <span>Карта</span>
@@ -187,7 +194,7 @@
                 </div>
             </div>
 
-            <div class="tab-panel" id="tab-baseline">
+            <div class="tab-panel" id="tab-xgb">
                 <article class="app-card">
                     <div class="placeholder-head">
                         <div>
@@ -195,10 +202,10 @@
                             <h3 class="mb-1">Модель в разработке</h3>
                             <p class="text-muted mb-0">Здесь будет почасовой прогноз PM2.5 на ближайшие 24 часа.</p>
                         </div>
-                        <span class="dev-badge"><i class="bi bi-tools"></i> roadmap</span>
+                        <span class="dev-badge" id="xgbStatusBadge"><i class="bi bi-hourglass-split"></i> loading</span>
                     </div>
                     <div class="baseline-chart-wrap">
-                        <canvas id="baselineChart"></canvas>
+                        <canvas id="xgbChart"></canvas>
                     </div>
                     <p class="chart-caption mb-0">Пустой график: прогноз на 24 часа появится после подключения baseline-модели.</p>
                 </article>
@@ -296,13 +303,113 @@
         const trendValues = {{ data.trend_values|default([])|tojson }};
         const stations = {{ stgcn_stations|default([])|tojson }};
         let mapInitialized = false;
-
         const statusFor = (pm) => pm <= 35 ? 'Green' : pm <= 75 ? 'Yellow' : 'Red';
         const colorFor = (pm) => pm <= 35 ? '#22c55e' : pm <= 75 ? '#f59e0b' : '#ef4444';
 
         const tabButtons = document.querySelectorAll('.model-tab');
         const tabPanels = document.querySelectorAll('.tab-panel');
         const loading = document.getElementById('tabLoading');
+        const root = document.getElementById('forecastPage');
+        const translate = (key, fallback = '') => typeof window.t === 'function' ? window.t(key, fallback) : fallback;
+        const interpolate = (template, values) => typeof window.interpolateText === 'function'
+            ? window.interpolateText(template, values)
+            : template;
+        const statusLabel = (pm) => pm <= 35
+            ? translate('status_green', 'Good')
+            : pm <= 75
+                ? translate('status_yellow', 'Moderate')
+                : translate('status_red', 'Hazardous');
+        const adviceForPm = (pm) => pm <= 35
+            ? translate('fc2_advice_low', '')
+            : pm <= 75
+                ? translate('fc2_advice_mid', '')
+                : translate('fc2_advice_high', '');
+
+        const applyForecastCopy = () => {
+            if (!root) return;
+
+            const currentPm = Number(root.dataset.currentPm || 0);
+            const tomorrowPm = Number(root.dataset.tomorrowPm || 0);
+            const yesterdayPm = Number(root.dataset.yesterdayPm || 0);
+            const todayDelta = currentPm - yesterdayPm;
+            const setText = (selector, key) => {
+                const el = document.querySelector(selector);
+                if (el) el.textContent = translate(key, el.textContent);
+            };
+
+            setText('.page-head .eyebrow', 'fc2_eyebrow');
+            setText('.page-head h1', 'fc2_title');
+            setText('.page-head p', 'fc2_subtitle');
+            const meta = document.querySelector('.head-meta span');
+            if (meta) meta.innerHTML = `<i class="bi bi-clock"></i> ${translate('fc2_updated', 'Updated')}: ${root.dataset.updatedAt || ''}`;
+
+            setText('.now-card .card-topline span:first-child', 'fc2_now');
+            setText('.metric-card:nth-child(2) small', 'fc2_temp');
+            setText('.metric-card:nth-child(3) small', 'fc2_wind');
+            setText('.metric-card:nth-child(4) small', 'fc2_now_vs_tomorrow');
+            document.querySelectorAll('.status-pill').forEach((pill) => {
+                if (pill.closest('.now-card')) {
+                    pill.textContent = statusLabel(currentPm);
+                }
+            });
+
+            const deltaRow = document.querySelector('.now-card .delta-row');
+            if (deltaRow) {
+                if (todayDelta > 0) {
+                    deltaRow.innerHTML = `<i class="bi bi-arrow-up-right"></i> ${interpolate(translate('fc2_vs_yesterday_worse', deltaRow.textContent), { value: Math.abs(todayDelta).toFixed(1) })}`;
+                } else if (todayDelta < 0) {
+                    deltaRow.innerHTML = `<i class="bi bi-arrow-down-right"></i> ${interpolate(translate('fc2_vs_yesterday_better', deltaRow.textContent), { value: Math.abs(todayDelta).toFixed(1) })}`;
+                } else {
+                    deltaRow.innerHTML = `<i class="bi bi-dash-lg"></i> ${translate('fc2_vs_yesterday_same', deltaRow.textContent)}`;
+                }
+            }
+
+            const switcher = document.querySelector('.model-switch');
+            if (switcher) switcher.setAttribute('aria-label', translate('fc2_tab_label', 'Model switcher'));
+            const tabSuffixes = ['fc2_tab_catboost', 'fc2_tab_xgb', 'fc2_tab_stgcn'];
+            tabButtons.forEach((button, index) => {
+                const suffix = button.querySelector('span');
+                if (suffix) suffix.textContent = translate(tabSuffixes[index], suffix.textContent);
+            });
+
+            const catboostLine = document.querySelector('#tab-catboost .card-topline span:first-child');
+            if (catboostLine) catboostLine.textContent = `${translate('fc2_catboost_title', 'CatBoost forecast for')} ${root.dataset.date || ''}`;
+            setText('#tab-catboost .aqi-strip small', 'fc2_aqi');
+            const advice = document.querySelector('#tab-catboost .aqi-strip p');
+            if (advice) advice.textContent = adviceForPm(tomorrowPm);
+            const vsCard = document.querySelector('#tab-catboost .vs-card');
+            if (vsCard) {
+                const spans = vsCard.querySelectorAll('span');
+                if (spans[0]) spans[0].textContent = translate('fc2_today', spans[0].textContent);
+                if (spans[1]) spans[1].textContent = translate('fc2_tomorrow', spans[1].textContent);
+            }
+
+            setText('#tab-catboost .section-title h5', 'fc2_rec_title');
+            setText('#tab-catboost .section-title span', 'fc2_rec_subtitle');
+            const sections = document.querySelectorAll('#tab-catboost .section-title');
+            if (sections[1]) {
+                const title = sections[1].querySelector('h5');
+                const desc = sections[1].querySelector('span');
+                if (title) title.textContent = translate('fc2_factors_title', title.textContent);
+                if (desc) desc.textContent = translate('fc2_factors_subtitle', desc.textContent);
+            }
+            if (sections[2]) {
+                const title = sections[2].querySelector('h5');
+                const desc = sections[2].querySelector('span');
+                if (title) title.textContent = translate('fc2_weather_title', title.textContent);
+                if (desc) desc.textContent = translate('fc2_weather_subtitle', desc.textContent);
+            }
+
+            const factors = document.querySelectorAll('.factor-list div');
+            if (factors[0]) factors[0].lastChild.textContent = ` ${translate('fc2_factor_1', factors[0].textContent.trim())}`;
+            if (factors[1]) factors[1].lastChild.textContent = ` ${translate('fc2_factor_2', factors[1].textContent.trim())}`;
+
+            const weatherLabels = document.querySelectorAll('.weather-grid small');
+            if (weatherLabels[0]) weatherLabels[0].textContent = translate('fc2_temp', weatherLabels[0].textContent);
+            if (weatherLabels[1]) weatherLabels[1].textContent = translate('fc2_wind', weatherLabels[1].textContent);
+            if (weatherLabels[2]) weatherLabels[2].textContent = translate('fc2_pressure', weatherLabels[2].textContent);
+            if (weatherLabels[3]) weatherLabels[3].textContent = translate('fc2_humidity', weatherLabels[3].textContent);
+        };
 
         const showTab = (tab) => {
             loading.classList.add('active');
@@ -311,6 +418,9 @@
             tabButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
             tabPanels.forEach((panel) => panel.classList.toggle('active', panel.id === `tab-${tab}`));
 
+            if (tab === 'xgb') {
+                window.setTimeout(loadXgbForecast, 40);
+            }
             if (tab === 'stgcn') {
                 window.setTimeout(initMap, 80);
             }
@@ -346,18 +456,20 @@
             }
         });
 
-        const baselineCtx = document.getElementById('baselineChart').getContext('2d');
-        new Chart(baselineCtx, {
+        const xgbCtx = document.getElementById('xgbChart').getContext('2d');
+        const xgbChart = new Chart(xgbCtx, {
             type: 'line',
             data: {
                 labels: Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`),
                 datasets: [{
                     label: 'PM2.5 forecast',
                     data: Array(24).fill(null),
-                    borderColor: '#94a3b8',
-                    borderDash: [6, 6],
+                    borderColor: '#0ea5e9',
+                    backgroundColor: 'rgba(14, 165, 233, 0.12)',
                     borderWidth: 2,
-                    pointRadius: 0
+                    pointRadius: 2,
+                    fill: true,
+                    tension: 0.3
                 }]
             },
             options: {
@@ -370,6 +482,174 @@
                 }
             }
         });
+
+        let xgbLoaded = false;
+
+        const ensureXgbDetailsLayout = () => {
+            if (document.getElementById('xgbModelStatus')) return;
+
+            const tab = document.getElementById('tab-xgb');
+            if (!tab) return;
+
+            const details = document.createElement('div');
+            details.className = 'row g-4 mt-1';
+            details.innerHTML = `
+                <div class="col-xl-4">
+                    <article class="app-card h-100">
+                        <div class="section-title">
+                            <div>
+                                <h5>Сводка модели</h5>
+                                <span>Ключевые показатели на 24 часа</span>
+                            </div>
+                        </div>
+                        <div class="xgb-stats-grid">
+                            <div class="xgb-stat-card">
+                                <small>Статус</small>
+                                <strong id="xgbModelStatus">Ожидание</strong>
+                            </div>
+                            <div class="xgb-stat-card">
+                                <small>Среднее</small>
+                                <strong id="xgbMeanValue">—</strong>
+                            </div>
+                            <div class="xgb-stat-card">
+                                <small>Пиковый час</small>
+                                <strong id="xgbPeakTime">—</strong>
+                            </div>
+                            <div class="xgb-stat-card">
+                                <small>Пик PM2.5</small>
+                                <strong id="xgbPeakValue">—</strong>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <p class="small text-muted mb-0">
+                                <i class="bi bi-lightning-charge text-warning"></i>
+                                Эта вкладка строится через <code>/api/forecast/hourly-xgb</code>, поэтому сразу показывает, подключена ли модель к приложению и хватает ли ей данных из БД.
+                            </p>
+                        </div>
+                    </article>
+                </div>
+                <div class="col-xl-8">
+                    <article class="app-card">
+                        <div class="section-title mb-0 border-bottom pb-3">
+                            <h5 class="mb-0">24-часовая лента прогноза</h5>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 station-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Час</th>
+                                        <th>PM2.5</th>
+                                        <th>Риск</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="xgbHourlyRows">
+                                    <tr>
+                                        <td colspan="3" class="text-muted py-4 text-center">Ожидание данных модели...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                </div>
+            `;
+            tab.appendChild(details);
+        };
+
+        const setXgbBadge = (label, tone) => {
+            ensureXgbDetailsLayout();
+            const badge = document.getElementById('xgbStatusBadge');
+            if (!badge) return;
+
+            const palette = {
+                loading: '<i class="bi bi-hourglass-split"></i>',
+                success: '<i class="bi bi-check-circle"></i>',
+                error: '<i class="bi bi-exclamation-octagon"></i>'
+            };
+            badge.classList.remove('model-ready', 'model-error');
+            if (tone === 'success') badge.classList.add('model-ready');
+            if (tone === 'error') badge.classList.add('model-error');
+            badge.innerHTML = `${palette[tone] || palette.loading} ${label}`;
+        };
+
+        const setXgbSummary = (forecast) => {
+            ensureXgbDetailsLayout();
+            const values = forecast.map((item) => Number(item.pm25));
+            const average = values.reduce((acc, value) => acc + value, 0) / values.length;
+            const peak = forecast.reduce((best, item) => Number(item.pm25) > Number(best.pm25) ? item : best, forecast[0]);
+
+            document.getElementById('xgbModelStatus').textContent = 'Подключена';
+            document.getElementById('xgbMeanValue').textContent = `${average.toFixed(1)} мкг/м³`;
+            document.getElementById('xgbPeakTime').textContent = peak.time;
+            document.getElementById('xgbPeakValue').textContent = `${Number(peak.pm25).toFixed(1)} мкг/м³`;
+        };
+
+        const renderXgbRows = (forecast) => {
+            ensureXgbDetailsLayout();
+            const body = document.getElementById('xgbHourlyRows');
+            body.innerHTML = forecast.map((item) => {
+                const pm = Number(item.pm25);
+                const status = statusFor(pm);
+                return `
+                    <tr>
+                        <td class="fw-semibold">${item.time}</td>
+                        <td class="fw-bold">${pm.toFixed(1)}</td>
+                        <td><span class="status-pill status-${status.toLowerCase()}">${status}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        };
+
+        const applyXgbForecast = (forecast) => {
+            xgbChart.data.labels = forecast.map((item) => item.time);
+            xgbChart.data.datasets[0].data = forecast.map((item) => Number(item.pm25));
+            xgbChart.update();
+            setXgbSummary(forecast);
+            renderXgbRows(forecast);
+            document.getElementById('xgbChartCaption').textContent = 'Почасовой прогноз загружен из XGB Hourly API.';
+            setXgbBadge('ready', 'success');
+        };
+
+        const setXgbTabCopy = () => {
+            const eyebrow = document.querySelector('#tab-xgb .eyebrow');
+            const title = document.querySelector('#tab-xgb h3');
+            const description = document.querySelector('#tab-xgb .placeholder-head .text-muted');
+            const caption = document.getElementById('xgbChartCaption') || document.querySelector('#tab-xgb .chart-caption');
+
+            if (eyebrow) eyebrow.textContent = 'XGBoost Hourly 24ч';
+            if (title) title.textContent = 'Почасовой прогноз PM2.5 на ближайшие 24 часа';
+            if (description) description.textContent = 'Авторегрессионная модель использует последние 72 часа истории из PostgreSQL и погодный прогноз Open-Meteo.';
+            if (caption) {
+                caption.id = 'xgbChartCaption';
+                caption.textContent = 'Загружаю прогноз XGB Hourly...';
+            }
+        };
+
+        const loadXgbForecast = async () => {
+            if (xgbLoaded) return;
+            xgbLoaded = true;
+            ensureXgbDetailsLayout();
+            setXgbTabCopy();
+            setXgbBadge('loading', 'loading');
+
+            try {
+                const response = await fetch('/api/forecast/hourly-xgb');
+                const payload = await response.json();
+                if (!response.ok || payload.status !== 'success' || !Array.isArray(payload.forecast)) {
+                    throw new Error(payload.message || 'XGB Hourly API returned an invalid response.');
+                }
+                applyXgbForecast(payload.forecast);
+            } catch (error) {
+                xgbLoaded = false;
+                document.getElementById('xgbModelStatus').textContent = 'Ошибка';
+                document.getElementById('xgbChartCaption').textContent = error.message;
+                document.getElementById('xgbHourlyRows').innerHTML = `
+                    <tr>
+                        <td colspan="3" class="text-danger py-4 text-center">${error.message}</td>
+                    </tr>
+                `;
+                setXgbBadge('error', 'error');
+            }
+        };
 
         const renderStationTable = () => {
             const body = document.getElementById('stationTableBody');
@@ -458,6 +738,9 @@
 
             window.setTimeout(() => map.invalidateSize(), 120);
         };
+        document.addEventListener('DOMContentLoaded', applyForecastCopy);
+        document.addEventListener('langChanged', applyForecastCopy);
+        applyForecastCopy();
         renderStationTable();
     })();
 </script>
@@ -808,9 +1091,46 @@
         background: #e2e8f0;
     }
 
+    .dev-badge.model-ready {
+        color: #166534;
+        background: rgba(34, 197, 94, 0.16);
+    }
+
+    .dev-badge.model-error {
+        color: #b91c1c;
+        background: rgba(239, 68, 68, 0.16);
+    }
+
     [data-bs-theme="dark"] .dev-badge {
         color: #e2e8f0;
         background: #334155;
+    }
+
+    .xgb-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+    }
+
+    .xgb-stat-card {
+        padding: 0.95rem;
+        border-radius: 8px;
+        background: var(--bs-tertiary-bg);
+    }
+
+    .xgb-stat-card small {
+        display: block;
+        color: var(--bs-secondary-color);
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .xgb-stat-card strong {
+        display: block;
+        margin-top: 0.2rem;
+        font-size: 1.1rem;
+        font-weight: 800;
     }
 
     .baseline-chart-wrap {
@@ -921,7 +1241,8 @@
     @media (max-width: 768px) {
         .now-grid,
         .model-switch,
-        .weather-grid {
+        .weather-grid,
+        .xgb-stats-grid {
             grid-template-columns: 1fr;
         }
 

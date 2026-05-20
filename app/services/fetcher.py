@@ -5,7 +5,7 @@ import time
 import math
 import httpx
 import datetime
-
+import os
 
 class OpenMeteoFetcher:
     def __init__(self, lat=43.25, lon=76.95):
@@ -44,7 +44,7 @@ class OpenMeteoFetcher:
                     "wind": round(data["current"]["wind_speed_10m"], 1)
                 }
                 
-                # Сохраняем в кэш
+                
                 self.cached_weather = result
                 self.weather_time = current_time
                 return result
@@ -117,7 +117,7 @@ class OpenMeteoFetcher:
                     "updated_at": "Ошибка сети"
                 }
 
-# Создаем ОДИН глобальный объект (Singleton) при старте сервера
+
 om_fetcher = OpenMeteoFetcher()
 
 
@@ -184,7 +184,7 @@ class OpenAQFetcher:
             return self.cached_24_nodes
 
         print("Кэш устарел. Начинаю безопасную выгрузку OpenAQ v3 (без риска бана)...")
-        API_KEY = "YOUR_OPENAQ_API_KEY"
+        API_KEY = os.getenv("OPENAQ_API_KEY", "")
         headers = {"accept": "application/json", "X-API-Key": API_KEY}
         
         sensor_tasks = []
@@ -221,7 +221,6 @@ class OpenAQFetcher:
                             })
                         break
 
-            # ШАГ 2: БЕЗОПАСНАЯ ПОСЛЕДОВАТЕЛЬНАЯ ВЫГРУЗКА
             # Берем только топ-20 сенсоров, чтобы не превысить лимит (60 запросов в минуту)
             sensor_tasks = sensor_tasks[:20] 
             print(f"[API] Запрашиваю {len(sensor_tasks)} сенсоров PM2.5...")
@@ -248,7 +247,7 @@ class OpenAQFetcher:
                                 })
                 except:
                     pass
-                # Задержка полсекунды между запросами гарантирует отсутствие бана
+                
                 time.sleep(0.5) 
                         
         except Exception as e:
@@ -270,7 +269,6 @@ class OpenAQFetcher:
         if live_df.empty:
             return self._fallback_24_nodes()
 
-        # ШАГ 3: Применяем алгоритм Spatial Imputer
         city_mean_pm25 = float(live_df['pm25'].astype(float).mean())
         final_24_values = []
         final_24_sources = []
@@ -295,12 +293,10 @@ class OpenAQFetcher:
             final_24_values.append(val)
             final_24_sources.append(source)
 
-        # 4. Обновляем кэш
         self.cached_24_nodes = final_24_values
         self.cached_24_sources = final_24_sources
         self.last_fetch_time = current_time
         
         return final_24_values
     
-# Создаем ОДИН глобальный объект (Singleton) при старте сервера
 openaq_fetcher = OpenAQFetcher()

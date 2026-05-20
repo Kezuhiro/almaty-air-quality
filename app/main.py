@@ -9,9 +9,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-# 1. Импортируем только КЛАССЫ моделей (без глобальных объектов)
+# 1. Импортируем только модели
 from services.catboost_service import CatBoostRunner
 from services.stgcn_service import STGCNRunner
+from services.xgb_hourly_service import XGBHourlyService
 
 # 2. Импортируем сервисы и менеджеры
 from services.fetcher import om_fetcher, openaq_fetcher
@@ -30,14 +31,13 @@ ml_models = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ==========================================
     # ВЫПОЛНЯЕТСЯ ОДИН РАЗ ПРИ СТАРТЕ СЕРВЕРА
-    # ==========================================
     print("Инициализация ML-движков в оперативную память...")
     
     # 1. Загружаем модели строго 1 раз в словарь
     ml_models["catboost"] = CatBoostRunner()
     ml_models["stgcn"] = STGCNRunner()
+    ml_models["xgb_hourly"] = XGBHourlyService()
     
     # 2. Делаем первый прогревочный запрос данных
     print("Прогрев кэша API...")
@@ -176,6 +176,7 @@ async def page_home(request: Request):
 @app.get("/forecast", response_class=HTMLResponse)
 async def page_forecast(request: Request, background_tasks: BackgroundTasks):
     background_tasks.add_task(data_manager.update_dataset)
+    background_tasks.add_task(data_manager.update_hourly_dataset)
 
     try:
         last_features = data_manager.get_last_features()
@@ -219,7 +220,7 @@ async def page_forecast(request: Request, background_tasks: BackgroundTasks):
             context={
                 "title": "Прогноз",
                 "active_page": "forecast",
-                "error": "Не удалось сформировать прогноз. Проверьте подключение к API или данные в CSV."
+                "error": "Не удалось сформировать прогноз. Проверьте подключение к API или данные в PostgreSQL."
             }
         )
 
@@ -409,8 +410,27 @@ async def get_prediction(model_name: str):
         return {"status": "success", "model": "STGCN", "message": "Здесь будет прогноз GNN на 3 часа"}
     if model_name == "catboost":
         return {"status": "success", "model": "CatBoost", "message": "Здесь будет суточный прогноз"}
+    if model_name == "xgb_hourly":
+        return {"status": "success", "model": "XGBHourly", "message": "Здесь будет прогноз XGBoost на 24 часа"}
     return {"status": "error", "message": "Модель не найдена"}
 
+@app.get("/api/forecast/hourly-xgb")
+async def get_hourly_xgb_forecast():
+    if "xgb_hourly" not in ml_models or ml_models["xgb_hourly"].model is None:
+        return {"status": "error", "message": "XGB Hourly model is not loaded."}
+
+    df_history = data_manager._load_hourly_dataset(limit=72)
+    
+    if df_history.empty or len(df_history) < 72:
+        return {"status": "error", "message": "Нет исторических данных в БД для прогрева лагов."}
+        
+    try:
+        forecast = await ml_models["xgb_hourly"].predict_next_24h(df_history)
+        if not forecast:
+            return {"status": "error", "message": "XGB Hourly model returned an empty forecast."}
+        return {"status": "success", "forecast": forecast}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

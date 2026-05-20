@@ -1028,6 +1028,93 @@
 </div>
 
 <script>
+    const simulationStaticCopy = {
+        ru: {
+            badge: 'Digital Twin',
+            title: 'Сценарная симуляция PM2.5',
+            desc: 'Управляйте погодными условиями и временем суток, а STGCN перераспределит загрязнение по городской сети наблюдений. Это экран для быстрых what-if сценариев, а не только для просмотра карты.',
+            presetsTitle: 'Готовые сценарии',
+            controlsTitle: 'Управление сценарием',
+            reset: 'Сбросить',
+            run: 'Рассчитать',
+            play: 'Play 24h',
+            save: 'Сохранить снимок',
+            restore: 'Вернуть снимок',
+            snapshotTitle: 'Снимок сценария',
+            driversTitle: 'Драйверы модели',
+            mapTitle: 'Пространственная карта сценария',
+            stationTitle: 'Станции и hotspots',
+            summaryTitle: 'Сводка сценария',
+            helpTitle: 'Как читать модель'
+        },
+        kk: {
+            badge: 'Digital Twin',
+            title: 'PM2.5 сценарийлік симуляциясы',
+            desc: 'Ауа райы мен тәулік уақытын басқарыңыз, ал STGCN ластануды қалалық бақылау желісі бойынша қайта таратады. Бұл тек картаны көруге емес, жылдам what-if сценарийлерге арналған экран.',
+            presetsTitle: 'Дайын сценарийлер',
+            controlsTitle: 'Сценарийді басқару',
+            reset: 'Қалпына келтіру',
+            run: 'Есептеу',
+            play: 'Play 24h',
+            save: 'Снимок сақтау',
+            restore: 'Снимокты қайтару',
+            snapshotTitle: 'Сценарий снимогы',
+            driversTitle: 'Модель драйверлері',
+            mapTitle: 'Сценарийдің кеңістіктік картасы',
+            stationTitle: 'Станциялар және hotspots',
+            summaryTitle: 'Сценарий қорытындысы',
+            helpTitle: 'Модельді қалай оқу керек'
+        },
+        en: {
+            badge: 'Digital Twin',
+            title: 'Scenario PM2.5 simulation',
+            desc: 'Control weather conditions and time of day, and STGCN will redistribute pollution across the city observation network. This screen is for fast what-if scenarios, not only for map viewing.',
+            presetsTitle: 'Preset scenarios',
+            controlsTitle: 'Scenario controls',
+            reset: 'Reset',
+            run: 'Run',
+            play: 'Play 24h',
+            save: 'Save snapshot',
+            restore: 'Restore snapshot',
+            snapshotTitle: 'Scenario snapshot',
+            driversTitle: 'Model drivers',
+            mapTitle: 'Spatial scenario map',
+            stationTitle: 'Stations and hotspots',
+            summaryTitle: 'Scenario summary',
+            helpTitle: 'How to read the model'
+        }
+    };
+
+    function applySimulationStaticCopy() {
+        const lang = typeof window.getLang === 'function' ? window.getLang() : 'ru';
+        const copy = simulationStaticCopy[lang] || simulationStaticCopy.ru;
+        const setText = (selector, value) => {
+            const el = document.querySelector(selector);
+            if (el) el.textContent = value;
+        };
+
+        setText('.sim-badge', copy.badge);
+        setText('.sim-hero h1', copy.title);
+        setText('.sim-hero p', copy.desc);
+        setText('.sim-panel:nth-of-type(2) h2', copy.presetsTitle);
+        setText('.sim-panel:nth-of-type(3) h2', copy.controlsTitle);
+        setText('#btn-reset', copy.reset);
+        setText('#btn-simulate', copy.run);
+        setText('#btn-play', copy.play);
+        setText('#btn-save', copy.save);
+        setText('#btn-restore', copy.restore);
+        setText('.sim-panel:nth-of-type(4) h2', copy.snapshotTitle);
+        setText('.sim-panel:nth-of-type(5) h2', copy.driversTitle);
+        setText('.sim-map-toolbar h2', copy.mapTitle);
+        const titles = document.querySelectorAll('.sim-panel h3');
+        if (titles[0]) titles[0].textContent = copy.stationTitle;
+        if (titles[1]) titles[1].textContent = copy.summaryTitle;
+        if (titles[2]) titles[2].textContent = copy.helpTitle;
+    }
+
+    document.addEventListener('DOMContentLoaded', applySimulationStaticCopy);
+    document.addEventListener('langChanged', applySimulationStaticCopy);
+
     const defaultScenario = {
         hour: 12,
         temp: 15,

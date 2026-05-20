@@ -1,12 +1,33 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: almaty_air_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   air_quality_api:
     build: .
     container_name: almaty_air_api
     ports:
       - "8000:8000"
     restart: unless-stopped
-    # Если вынесешь ключи OpenAQ в .env файл, раскомментируй строки ниже:
-    # env_file:
-    #   - .env
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+      SYNC_DATABASE_URL: postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+      OPENAQ_API_KEY: ${OPENAQ_API_KEY}
+
+volumes:
+  postgres_data:

@@ -5,7 +5,15 @@ jinja2
 numpy
 pandas
 scikit-learn
+xgboost
 requests
 httpx
 catboost
 folium
+
+SQLAlchemy>=2.0.0
+alembic
+asyncpg
+psycopg2-binary
+geoalchemy2
+joblib

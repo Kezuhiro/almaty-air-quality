@@ -1,8 +1,8 @@
 import os
 import datetime
-import time  # Добавлено для кэширования
+import time  
 import numpy as np
-import httpx  # Обязательно pip install httpx для асинхронности
+import httpx  
 from catboost import CatBoostRegressor
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -24,10 +24,8 @@ class CatBoostRunner:
         self.cache_ttl = 3600  # Время жизни кэша: 1 час (3600 секунд)
 
     async def _fetch_tomorrow_weather(self):
-        """Асинхронно получаем прогноз погоды ИМЕННО НА ЗАВТРА (с кэшированием)"""
         current_time = time.time()
-        
-        # Возвращаем кэш, если данные были загружены менее часа назад
+
         if self.cached_weather and (current_time - self.weather_time) < self.cache_ttl:
             return self.cached_weather
 
@@ -41,7 +39,6 @@ class CatBoostRunner:
             "forecast_days": 2 # 0 - сегодня, 1 - завтра
         }
         
-        # Используем асинхронный клиент
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.get(url, params=params, timeout=10.0)
@@ -57,17 +54,14 @@ class CatBoostRunner:
                     'wind_speed_max': daily['wind_speed_10m_max'][1] / 3.6, # км/ч в м/с
                     'wind_speed_mean': (daily['wind_speed_10m_max'][1] / 3.6) * 0.7,
                     'wind_dir': daily['wind_direction_10m_dominant'][1],
-                    'pressure': 920.0 # В идеале тоже парсить часовой прогноз на завтра
+                    'pressure': 920.0 
                 }
                 
-                # Сохраняем успешный ответ в кэш
                 self.cached_weather = result
                 self.weather_time = current_time
                 return result
                 
             except Exception as e:
-                # Никаких дефолтных значений. Если API упал, нужно бросать ошибку, 
-                # чтобы сервер выдал нормальный HTTP 500 Service Unavailable, а не врал юзеру.
                 print(f"Ошибка получения прогноза погоды на завтра: {e}")
     
                 if self.cached_weather:
@@ -75,10 +69,6 @@ class CatBoostRunner:
                 raise e
 
     async def predict_tomorrow(self, current_pm25: float, current_pm10: float, roll7_pm25: float):
-        """
-        current_pm25, current_pm10, roll7_pm25 - это лаги (вчерашние/сегодняшние данные),
-        которые ты можешь вытаскивать из DataManager.get_last_features() прямо в роутере FastAPI.
-        """
         if self.model is None:
             raise RuntimeError("Модель CatBoost не инициализирована.")
 
@@ -141,5 +131,5 @@ class CatBoostRunner:
             "advice": advice
         }
 
-# В main.py ты должен импортировать этот объект
+
 catboost_runner = CatBoostRunner()

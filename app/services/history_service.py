@@ -1,105 +1,116 @@
-import os
 import pandas as pd
-import numpy as np
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "data")
+from db.database import read_sql_query
+
+
+CITYWIDE_STATION_ID = 999
+EXCLUDED_STATION_IDS = [2812676, 2812831, 2812649, 2812716, 2812691]
+EXCLUDED_STATION_IDS_SQL = ", ".join(str(station_id) for station_id in EXCLUDED_STATION_IDS)
+
 
 class HistoryService:
-    def __init__(self):
-        self.daily_data = None
-        self.hourly_data = None
-        self.station_data = None
-        self.load_data()
+    def _load_daily_data(self) -> pd.DataFrame:
+        query = """
+            SELECT "date", pm25, pm10
+            FROM daily_features
+            ORDER BY "date"
+        """
+        return read_sql_query(query, parse_dates=["date"])
 
-    def load_data(self):
+    def _load_hourly_data(self) -> pd.DataFrame:
+        query = """
+            SELECT "datetime", pm25
+            FROM hourly_features
+            WHERE "datetime" >= (
+                SELECT MAX("datetime") - INTERVAL '30 days'
+                FROM hourly_features
+            )
+            ORDER BY "datetime"
+        """
+        return read_sql_query(query, parse_dates=["datetime"])
+
+    def _load_station_averages(self) -> pd.DataFrame:
+        query = f"""
+            SELECT station_id, AVG(pm25) AS avg_pm25
+            FROM measurements
+            WHERE station_id <> {CITYWIDE_STATION_ID}
+              AND station_id NOT IN ({EXCLUDED_STATION_IDS_SQL})
+              AND pm25 IS NOT NULL
+            GROUP BY station_id
+            ORDER BY avg_pm25 DESC
+        """
+        return read_sql_query(query)
+
+    def _load_station_recent_series(self) -> pd.DataFrame:
+        query = f"""
+            WITH latest AS (
+                SELECT MAX(timestamp) AS max_ts
+                FROM measurements
+                WHERE station_id <> {CITYWIDE_STATION_ID}
+                  AND station_id NOT IN ({EXCLUDED_STATION_IDS_SQL})
+                  AND pm25 IS NOT NULL
+            )
+            SELECT timestamp AS datetime_utc, AVG(pm25) AS avg_all
+            FROM measurements, latest
+            WHERE station_id <> {CITYWIDE_STATION_ID}
+              AND station_id NOT IN ({EXCLUDED_STATION_IDS_SQL})
+              AND pm25 IS NOT NULL
+              AND timestamp >= latest.max_ts - INTERVAL '7 days'
+            GROUP BY timestamp
+            ORDER BY timestamp
+        """
+        return read_sql_query(query, parse_dates=["datetime_utc"])
+
+    def get_context(self) -> dict:
+        context: dict = {}
+
         try:
-            # 1. Daily
-            daily_path = os.path.join(DATA_DIR, "train_dataset_full.csv")
-            if os.path.exists(daily_path):
-                df_daily = pd.read_csv(daily_path)
-                df_daily['date'] = pd.to_datetime(df_daily['date'])
-                df_daily = df_daily.sort_values('date')
-                self.daily_data = df_daily
-
-            # 2. Hourly
-            hourly_path = os.path.join(DATA_DIR, "train_hourly_complete.csv")
-            if os.path.exists(hourly_path):
-                df_hourly = pd.read_csv(hourly_path)
-                df_hourly['datetime'] = pd.to_datetime(df_hourly['datetime'])
-                # Let's take only last 30 days for hourly to save memory/bandwidth
-                last_date = df_hourly['datetime'].max()
-                df_hourly = df_hourly[df_hourly['datetime'] >= (last_date - pd.Timedelta(days=30))]
-                df_hourly = df_hourly.sort_values('datetime')
-                self.hourly_data = df_hourly
-
-            # 3. Stations
-            stations_path = os.path.join(DATA_DIR, "almaty_pm25_matrix.csv")
-            if os.path.exists(stations_path):
-                df_stations = pd.read_csv(stations_path)
-                df_stations['datetime_utc'] = pd.to_datetime(df_stations['datetime_utc'])
-                
-                # Exclude specified stations
-                exclude = ['2812676', '2812831', '2812649', '2812716', '2812691']
-                cols_to_keep = [c for c in df_stations.columns if c not in exclude]
-                df_stations = df_stations[cols_to_keep]
-                
-                self.station_data = df_stations
-
-        except Exception as e:
-            print(f"Error loading history data: {e}")
-    
-    def get_context(self):
-
-        context = {}
-        
-        # Daily
-        if self.daily_data is not None:
-            df = self.daily_data
-            df = df.reset_index(drop=True) 
-            
-            context["stats"] = {
-                "days": len(df),
-                "avg": round(df['pm25'].mean(), 1),
-                "max": round(df['pm25'].max(), 1)
-            }
-            context["chart_dates"] = df['date'].dt.strftime('%Y-%m-%d').tolist()
-            context["chart_values"] = df['pm25'].round(1).tolist()
-            
-            history_list = df.tail(365).sort_values('date', ascending=False).to_dict('records')
-            context["history"] = [
-                {
-                    "date": row['date'].strftime('%Y-%m-%d'),
-                    "pm25": round(row['pm25'], 1),
-                    "pm10": round(row['pm10'], 1) if not pd.isna(row.get('pm10')) else 0
+            daily_data = self._load_daily_data()
+            if not daily_data.empty:
+                daily_data = daily_data.sort_values("date").reset_index(drop=True)
+                context["stats"] = {
+                    "days": len(daily_data),
+                    "avg": round(daily_data["pm25"].mean(), 1),
+                    "max": round(daily_data["pm25"].max(), 1),
                 }
-                for row in history_list
-            ]
-        
-        # Hourly
-        if self.hourly_data is not None:
-            df_h = self.hourly_data.tail(24 * 7) # Last 7 days
-            context["hourly_dates"] = df_h['datetime'].dt.strftime('%d.%m %H:00').tolist()
-            context["hourly_values"] = df_h['pm25'].round(1).tolist()
-            
-        # Stations
-        if self.station_data is not None:
-            df_s = self.station_data
-            numeric_cols = [c for c in df_s.columns if c != 'datetime_utc']
-            station_avgs = df_s[numeric_cols].mean().round(1).to_dict()
-            
-            sorted_stations = sorted([{"id": k, "avg_pm25": v} for k, v in station_avgs.items()], key=lambda x: x['avg_pm25'], reverse=True)
-            context["stations"] = sorted_stations
-            
-            # Station history (last 7 days average across all included stations)
-            df_s_recent = df_s.tail(24 * 7).copy()
-            df_s_recent['avg_all'] = df_s_recent[numeric_cols].mean(axis=1)
-            context["station_dates"] = df_s_recent['datetime_utc'].dt.strftime('%d.%m %H:00').tolist()
-            context["station_values"] = df_s_recent['avg_all'].round(1).tolist()
+                context["chart_dates"] = daily_data["date"].dt.strftime("%Y-%m-%d").tolist()
+                context["chart_values"] = daily_data["pm25"].round(1).tolist()
 
-        if not context:
-            context["error"] = "Данные не найдены"
-            
+                history_list = daily_data.tail(365).sort_values("date", ascending=False).to_dict("records")
+                context["history"] = [
+                    {
+                        "date": row["date"].strftime("%Y-%m-%d"),
+                        "pm25": round(row["pm25"], 1),
+                        "pm10": round(row["pm10"], 1) if not pd.isna(row.get("pm10")) else 0,
+                    }
+                    for row in history_list
+                ]
+
+            hourly_data = self._load_hourly_data()
+            if not hourly_data.empty:
+                hourly_slice = hourly_data.tail(24 * 7)
+                context["hourly_dates"] = hourly_slice["datetime"].dt.strftime("%d.%m %H:00").tolist()
+                context["hourly_values"] = hourly_slice["pm25"].round(1).tolist()
+
+            station_averages = self._load_station_averages()
+            if not station_averages.empty:
+                context["stations"] = [
+                    {"id": str(row["station_id"]), "avg_pm25": round(row["avg_pm25"], 1)}
+                    for _, row in station_averages.iterrows()
+                ]
+
+            station_recent = self._load_station_recent_series()
+            if not station_recent.empty:
+                context["station_dates"] = station_recent["datetime_utc"].dt.strftime("%d.%m %H:00").tolist()
+                context["station_values"] = station_recent["avg_all"].round(1).tolist()
+
+            if not context:
+                context["error"] = "Данные не найдены в PostgreSQL"
+        except Exception as exc:
+            print(f"Error loading history data from PostgreSQL: {exc}")
+            context["error"] = "Не удалось загрузить историю из PostgreSQL"
+
         return context
+
 
 history_service = HistoryService()

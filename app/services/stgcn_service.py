@@ -11,9 +11,9 @@ import requests
 from folium.plugins import HeatMap
 from services.fetcher import openaq_fetcher
 
-# ==========================================
+
 # 1. АРХИТЕКТУРА МОДЕЛИ
-# ==========================================
+
 class GraphConvLayer(nn.Module):
     def __init__(self, in_features, out_features):
         super().__init__()
@@ -43,9 +43,8 @@ class AlmatySTGCN(nn.Module):
         out = self.fc(last_step)
         return out
 
-# ==========================================
 # 2. КЛАСС ДЛЯ ИНФЕРЕНСА (STGCN Runner)
-# ==========================================
+
 class STGCNRunner:
     def __init__(self):
         self.base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -90,7 +89,7 @@ class STGCNRunner:
             return self.cached_history
 
         try:
-            # 1. Погода за 12 часов
+            # Погода за 12 часов
             w_url = "https://api.open-meteo.com/v1/forecast"
             w_params = {
                 "latitude": 43.25, "longitude": 76.95,
@@ -101,7 +100,6 @@ class STGCNRunner:
             }
             w_resp = requests.get(w_url, params=w_params, timeout=10).json()
             
-            # 2. PM2.5 / PM10 за 12 часов
             a_url = "https://air-quality-api.open-meteo.com/v1/air-quality"
             a_params = {
                 "latitude": 43.25, "longitude": 76.95,
@@ -112,7 +110,6 @@ class STGCNRunner:
             }
             a_resp = requests.get(a_url, params=a_params, timeout=10).json()
             
-            # Берем срез (ровно 12 элементов до текущего часа)
             result = {
                 "temp": w_resp["hourly"]["temperature_2m"][:12],
                 "hum":  w_resp["hourly"]["relative_humidity_2m"][:12],
@@ -122,7 +119,7 @@ class STGCNRunner:
                 "pm25": a_resp["hourly"]["pm2_5"][:12]
             }
             
-            # Сохраняем в кэш
+
             self.cached_history = result
             self.history_time = current_time
             return result
@@ -135,14 +132,12 @@ class STGCNRunner:
 
     def get_predictions(self):
         current_time = time.time()
-        # Возвращаем кэш прогнозов, если ему меньше 15 минут (900 секунд)
         if self.cached_predictions and (current_time - self.predictions_time) < 900:
             return self.cached_predictions
 
         if self.model is None or self.adj_tensor is None:
             return openaq_fetcher.get_realtime_24_nodes()
             
-        # 1. Получаем живые данные с датчиков (OpenAQ -> Imputer -> 24 Nodes)
         current_pm25 = openaq_fetcher.get_realtime_24_nodes()
         current_pm25_np = np.array(current_pm25, dtype=float)
         
@@ -151,8 +146,7 @@ class STGCNRunner:
             current_pm25_np = np.full(24, 40.0, dtype=float)
         else:
             current_pm25_np = np.where(valid_current, current_pm25_np, float(np.nanmean(current_pm25_np[valid_current])))
-            
-        # 2. Выгружаем РЕАЛЬНУЮ ИСТОРИЮ
+
         history = self.get_real_12h_history()
         
         def fill_nans(arr, default):
@@ -171,20 +165,18 @@ class STGCNRunner:
             h_temp, h_hum, h_wind, h_dir = np.full(12, 10.0), np.full(12, 45.0), np.full(12, 2.0), np.full(12, 180.0)
             h_pm10, h_pm25 = np.full(12, 20.0), np.full(12, 15.0)
 
-        # 3. Собираем честный тензор [1, 12, 24, 6]
         tensor_data = np.zeros((1, 12, 24, 6), dtype=np.float32)
         
         for i in range(24):
             station_current = current_pm25_np[i]
             city_current = h_pm25[-1] if h_pm25[-1] > 0 else 1.0
-            ratio = station_current / city_current # Пропорция станции к городу
+            ratio = station_current / city_current 
             
             for t in range(12):
-                # Накладываем НАСТОЯЩИЙ городской тренд на эту станцию
                 real_pm25_t = h_pm25[t] * ratio
                 scaled_pm25 = self.scaler.transform(np.array([[real_pm25_t]]))[0][0]
                 
-                # Строгая нормализация метеоданных для нейросети (0-1)
+
                 norm_temp = max(0.0, min(1.0, (h_temp[t] + 20) / 60.0))
                 norm_hum  = max(0.0, min(1.0, h_hum[t] / 100.0))
                 norm_wind = max(0.0, min(1.0, h_wind[t] / 15.0))
@@ -205,9 +197,8 @@ class STGCNRunner:
             
             final_preds = []
             for i, p in enumerate(real_preds):
-                # Если нейросеть из-за сдвига данных выдала минус или безумный выброс
+
                 if p < 0.5 or p > 500:
-                    # Честный математический фоллбэк: берем реальный тренд за 3 часа
                     trend_3h = h_pm25[-1] - h_pm25[-4]
                     ratio = current_pm25_np[i] / (h_pm25[-1] if h_pm25[-1] > 0 else 1.0)
                     fallback_val = current_pm25_np[i] + (trend_3h * ratio)
@@ -215,7 +206,7 @@ class STGCNRunner:
                 else:
                     final_preds.append(float(p))
             
-            # Обновляем кэш
+
             self.cached_predictions = final_preds
             self.predictions_time = current_time
             
@@ -252,13 +243,10 @@ class STGCNRunner:
 
 
     def simulate_scenario(self, temp: float, wind: float, direction: float, hum: float, hour: int):
-        """
-        Time-Aware симуляция: учитывает время суток, трафик и суточные колебания температуры.
-        """
         if self.model is None or self.adj_tensor is None:
             return []
 
-        # 1. Базовые данные
+
         current_pm25 = openaq_fetcher.get_realtime_24_nodes()
         current_pm25_np = np.array(current_pm25, dtype=float)
         valid_current = np.isfinite(current_pm25_np) & (current_pm25_np > 0.5)
@@ -267,12 +255,10 @@ class STGCNRunner:
         else:
             current_pm25_np = np.where(valid_current, current_pm25_np, float(np.nanmean(current_pm25_np[valid_current])))
 
-        # 2. Нормализация (с защитой от выбросов)
         norm_hum  = max(0.0, min(1.0, hum / 100.0))
         norm_wind = max(0.0, min(1.0, wind / 15.0))
         norm_dir  = max(0.0, min(1.0, direction / 360.0))
 
-        # 3. Сборка тензора [1, 12, 24, 6] с учетом ИСТОРИИ (12 часов до выбранного часа)
         tensor_data = np.zeros((1, 12, 24, 6), dtype=np.float32)
         scaled_pm25 = self.scaler.transform(current_pm25_np.reshape(-1, 1)).flatten()
 
@@ -280,10 +266,8 @@ class STGCNRunner:
             current_val = scaled_pm25[i]
             
             for t in range(12):
-                # Вычисляем, какой это был час в истории (от -11 до 0)
                 hist_hour = (hour - 11 + t) % 24
                 
-                # Имитация суточного хода температуры (ночью холоднее на 5-8 градусов)
                 temp_shift = 0
                 if hist_hour < 7 or hist_hour > 20:
                     temp_shift = -5.0
@@ -293,14 +277,12 @@ class STGCNRunner:
                 hist_temp = temp + temp_shift
                 norm_temp = max(0.0, min(1.0, (hist_temp + 20) / 60.0))
 
-                # Имитация трафика (Часы пик: 8-10 и 18-20)
                 traffic_multiplier = 1.0
                 if hist_hour in [8, 9, 18, 19]:
                     traffic_multiplier = 1.25
                 elif hist_hour in [2, 3, 4]:
                     traffic_multiplier = 0.8
                 
-                # Плавный рост к целевому значению
                 start_val = current_val * 0.7 
                 step_val = start_val + (current_val - start_val) * (t / 11.0)
                 step_val *= traffic_multiplier
